@@ -1,6 +1,6 @@
 /* SignalSafe landing — "Signal Box" at night */
 :root {
-  --night: #10150b;
+  --night: #1b2314;
   --olive: #33401f;
   --olive-2: #46562b;
   --olive-3: #5d6f3a;
@@ -61,11 +61,9 @@ body:has(.world.hidden) {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  background: radial-gradient(ellipse at center, transparent 55%, rgba(8, 10, 5, 0.6) 100%);
+  background: radial-gradient(ellipse at center, transparent 62%, rgba(10, 12, 6, 0.38) 100%);
 }
-main,
-.nav,
-.rail {
+main {
   position: relative;
   z-index: 2;
 }
@@ -79,8 +77,13 @@ main,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 28px;
-  background: linear-gradient(rgba(16, 21, 11, 0.85), rgba(16, 21, 11, 0));
+  padding: 14px 28px;
+  /* sits above the chapter cards: they slide underneath, not over it */
+  z-index: 20;
+  background: rgba(22, 28, 15, 0.72);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid rgba(201, 164, 106, 0.18);
 }
 .brand {
   display: flex;
@@ -134,6 +137,7 @@ h2 i {
 /* ── chapter rail ──────────────────────── */
 .rail {
   position: fixed;
+  z-index: 15;
   right: 22px;
   top: 50%;
   transform: translateY(-50%);
@@ -192,12 +196,27 @@ h2 i {
 /* ── hero ──────────────────────────────── */
 .hero,
 .finale {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 120px 8vw 80px;
   max-width: 1100px;
+}
+/* soft scrim so headline text holds up against the bright dusk sky */
+.hero::before,
+.finale::before {
+  content: '';
+  position: absolute;
+  inset: 10% -10% 5% -20%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 35% 45%, rgba(18, 23, 11, 0.62) 0%, rgba(18, 23, 11, 0.35) 45%, transparent 72%);
+}
+.finale::before {
+  inset: 15% -30% 10%;
+  background: radial-gradient(ellipse at 50% 40%, rgba(18, 23, 11, 0.7) 0%, rgba(18, 23, 11, 0.4) 45%, transparent 75%);
 }
 .kicker {
   font: 700 12px var(--mono);
@@ -218,7 +237,7 @@ h1 {
   font: 500 clamp(64px, 12vw, 168px) / 0.92 var(--serif);
   letter-spacing: -0.02em;
   margin: 0;
-  text-shadow: 0 6px 40px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 4px 30px rgba(14, 18, 8, 0.75);
 }
 .lede {
   max-width: 600px;

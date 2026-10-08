@@ -2,8 +2,8 @@
 import * as THREE from 'three'
 
 export const C = {
-  night: 0x10150b,
-  ground: 0x161d0f,
+  night: 0x7d7250, // dusk haze: fog and horizon share this so the ground melts into the sky
+  ground: 0x2b3421,
   olive: 0x33401f,
   olive2: 0x46562b,
   olive3: 0x5d6f3a,
@@ -39,7 +39,7 @@ export function makeTrack(from = TRACK_START, to = TRACK_END, xOff = 0): THREE.G
   ballast.position.set(xOff, 0.05, mid)
   ballast.receiveShadow = true
   g.add(ballast)
-  const railMat = std(C.brass, { metalness: 0.7, roughness: 0.35 })
+  const railMat = std(0xa08a62, { metalness: 0.35, roughness: 0.55 })
   for (const sx of [-1, 1]) {
     const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.16, len), railMat)
     rail.position.set(xOff + (sx * GAUGE) / 2, 0.33, mid)
@@ -94,72 +94,303 @@ export function makeSignal(height = 5.5) {
   return { group: g, setAspect }
 }
 
-/** Kavach-fitted loco (WAP-style box body) with optional coaches. */
-export function makeLoco(coaches = 2) {
+/** Contact-wire height of the overhead line (OHE). */
+export const WIRE_Y = 5.6
+
+export interface Loco {
+  group: THREE.Group
+  /** Local z of the nose (negative: the model faces -z). */
+  noseOffset: number
+  /** +1 if the nose points toward +z in the world, -1 toward -z. */
+  facing: 1 | -1
+  /** Place the nose at world z and animate from the movement since the last call. */
+  moveTo(noseZ: number, dt: number, t: number): void
+  /** Current speed in m/s (smoothed), for labels. */
+  readonly speed: number
+}
+
+/**
+ * Kavach-fitted electric loco (WAP-style box body) with coaches.
+ * Animated: wheels turn with distance, body and coaches sway with speed,
+ * pantograph arcs now and then, brake shoes glow under hard braking.
+ */
+export function makeLoco(coaches = 2, facing: 1 | -1 = -1): Loco {
   const g = new THREE.Group()
-  const body = std(C.olive2, { roughness: 0.55, metalness: 0.25 })
+  if (facing === 1) g.rotation.y = Math.PI
   const len = 9
-  const shell = new THREE.Mesh(new THREE.BoxGeometry(2.3, 2.5, len), body)
-  shell.position.set(0, 1.9, 0)
-  g.add(shell)
-  const nose = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.6, 0.9), body)
-  nose.position.set(0, 1.45, -len / 2 - 0.4)
-  g.add(nose)
-  const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.34, 0.32, len + 0.02), std(C.rust, { roughness: 0.4 }))
-  stripe.position.set(0, 1.55, 0)
-  g.add(stripe)
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.25, len - 1), std(C.brass, { metalness: 0.3, roughness: 0.7 }))
-  roof.position.set(0, 3.27, 0)
-  g.add(roof)
-  const glass = glow(0x2c4656, 0.9) // dark glass: stays under the bloom threshold
-  const windscreen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.7), glass)
-  windscreen.position.set(0, 2.55, -len / 2 - 0.01)
-  windscreen.rotation.y = Math.PI
-  g.add(windscreen)
-  const headlight = new THREE.Mesh(new THREE.CircleGeometry(0.22, 20), glow(C.warm))
-  headlight.position.set(0, 2.05, -len / 2 - 0.86)
-  headlight.rotation.y = Math.PI
-  g.add(headlight)
-  for (const sx of [-0.7, 0.7]) {
-    const marker = new THREE.Mesh(new THREE.CircleGeometry(0.1, 12), glow(C.warm))
-    marker.position.set(sx, 1.0, -len / 2 - 0.86)
-    marker.rotation.y = Math.PI
-    g.add(marker)
-  }
+  const bodyMat = std(C.olive2, { roughness: 0.5, metalness: 0.25 })
+  const wheels: THREE.Mesh[] = []
+  const shoes: THREE.MeshBasicMaterial[] = []
   const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.18, 18)
   const wheelMat = std(0x15170f, { metalness: 0.6 })
-  for (const z of [-3, -1.8, 1.8, 3]) {
-    for (const sx of [-1, 1]) {
-      const w = new THREE.Mesh(wheelGeo, wheelMat)
-      w.rotation.z = Math.PI / 2
-      w.position.set((sx * GAUGE) / 2 + sx * 0.05, 0.62, z)
-      g.add(w)
+  const spokeMat = std(C.brass, { metalness: 0.6, roughness: 0.4 })
+
+  function bogie(parent: THREE.Object3D, z: number) {
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.35, 2.6), std(0x1d2016, { metalness: 0.5 }))
+    frame.position.set(0, 0.75, z)
+    parent.add(frame)
+    for (const dz of [-0.75, 0.75]) {
+      for (const sx of [-1, 1]) {
+        const w = new THREE.Mesh(wheelGeo, wheelMat)
+        w.rotation.z = Math.PI / 2
+        w.position.set((sx * GAUGE) / 2 + sx * 0.05, 0.62, z + dz)
+        // a brass spoke so rotation reads
+        const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.2, 0.07), spokeMat)
+        spoke.position.y = sx * 0.1
+        w.add(spoke)
+        parent.add(w)
+        wheels.push(w)
+        const shoeMat = glow(0x2a1a10)
+        const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.18), shoeMat)
+        shoe.position.set((sx * GAUGE) / 2 + sx * 0.18, 0.62, z + dz + 0.46)
+        parent.add(shoe)
+        shoes.push(shoeMat)
+      }
     }
   }
+
+  // body sits on a sprung group so it can bob without moving the wheels
+  const body = new THREE.Group()
+  g.add(body)
+  const shell = new THREE.Mesh(new THREE.BoxGeometry(2.3, 2.5, len), bodyMat)
+  shell.position.set(0, 1.95, 0)
+  body.add(shell)
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.6, 0.9), bodyMat)
+  nose.position.set(0, 1.5, -len / 2 - 0.4)
+  body.add(nose)
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.34, 0.32, len + 0.02), std(C.rust, { roughness: 0.4 }))
+  stripe.position.set(0, 1.6, 0)
+  body.add(stripe)
+  const cream = new THREE.Mesh(new THREE.BoxGeometry(2.34, 0.12, len + 0.02), std(C.parch, { roughness: 0.6 }))
+  cream.position.set(0, 1.84, 0)
+  body.add(cream)
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.25, len - 1), std(0x6f6a55, { metalness: 0.3, roughness: 0.7 }))
+  roof.position.set(0, 3.32, 0)
+  body.add(roof)
+  const windscreen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.7), glow(0x2c4656, 0.9))
+  windscreen.position.set(0, 2.6, -len / 2 - 0.01)
+  windscreen.rotation.y = Math.PI
+  body.add(windscreen)
+  const headlight = new THREE.Mesh(new THREE.CircleGeometry(0.22, 20), glow(C.warm))
+  headlight.position.set(0, 2.1, -len / 2 - 0.86)
+  headlight.rotation.y = Math.PI
+  body.add(headlight)
+  for (const sx of [-0.7, 0.7]) {
+    const marker = new THREE.Mesh(new THREE.CircleGeometry(0.1, 12), glow(C.warm))
+    marker.position.set(sx, 1.05, -len / 2 - 0.86)
+    marker.rotation.y = Math.PI
+    body.add(marker)
+  }
+  const tail = new THREE.Mesh(new THREE.CircleGeometry(0.12, 12), glow(C.red))
+  tail.position.set(0, 1.2, len / 2 + 0.01)
+  body.add(tail)
   // Kavach roof antenna
   const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.9), std(0xcccccc, { metalness: 0.8 }))
-  ant.position.set(0.5, 3.8, -2)
-  g.add(ant)
+  ant.position.set(0.6, 3.85, -2.6)
+  body.add(ant)
   const antTip = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), glow(C.rust))
-  antTip.position.set(0.5, 4.27, -2)
-  g.add(antTip)
-  for (let c = 0; c < coaches; c++) {
-    const coach = new THREE.Mesh(new THREE.BoxGeometry(2.3, 2.6, 10), std(c % 2 ? C.olive : 0x3d4a26, { roughness: 0.6 }))
-    coach.position.set(0, 1.95, len / 2 + 0.6 + 5 + c * 10.6)
-    g.add(coach)
-    for (let w = 0; w < 6; w++) {
-      const win = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.55), glow(0xffd98a, 0.85))
-      win.position.set(1.16, 2.2, coach.position.z - 3.8 + w * 1.5)
-      win.rotation.y = Math.PI / 2
-      g.add(win)
-      const win2 = win.clone()
-      win2.position.x = -1.16
-      win2.rotation.y = -Math.PI / 2
-      g.add(win2)
-    }
+  antTip.position.set(0.6, 4.32, -2.6)
+  body.add(antTip)
+
+  // pantograph: diamond frame up to the contact wire
+  const panMat = std(0xb9bcae, { metalness: 0.8, roughness: 0.3 })
+  const panZ = 2.2
+  const baseY = 3.45
+  const kneeY = (baseY + WIRE_Y) / 2
+  const pa = new THREE.Vector3(0, baseY, panZ - 0.7)
+  const pb = new THREE.Vector3(0, kneeY, panZ + 0.5)
+  const pc = new THREE.Vector3(0, WIRE_Y - 0.05, panZ)
+  for (const sx of [-0.45, 0.45]) {
+    body.add(beamBetween(pa.clone().setX(sx), pb.clone().setX(sx), 0.035, panMat))
+    body.add(beamBetween(pb.clone().setX(sx), pc.clone().setX(sx * 0.6), 0.035, panMat))
   }
-  return { group: g, noseOffset: -len / 2 - 0.9, headlight }
+  const head = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.06, 0.14), panMat)
+  head.position.copy(pc)
+  body.add(head)
+  const arc = new THREE.Sprite(new THREE.SpriteMaterial({ map: haloTexture(), color: 0x9fd8ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }))
+  arc.position.set(0, WIRE_Y, panZ)
+  arc.scale.setScalar(1.6)
+  arc.visible = false
+  body.add(arc)
+
+  bogie(g, -2.6)
+  bogie(g, 2.6)
+
+  const coachBodies: THREE.Group[] = []
+  for (let c = 0; c < coaches; c++) {
+    const cz = len / 2 + 0.6 + 5 + c * 10.6
+    const cb = new THREE.Group()
+    cb.position.z = cz
+    g.add(cb)
+    const shellC = new THREE.Mesh(new THREE.BoxGeometry(2.3, 2.6, 10), std(c % 2 ? C.olive : 0x3d4a26, { roughness: 0.55 }))
+    shellC.position.y = 2.0
+    cb.add(shellC)
+    const band = new THREE.Mesh(new THREE.BoxGeometry(2.34, 0.14, 10.02), std(C.parch, { roughness: 0.6 }))
+    band.position.y = 1.35
+    cb.add(band)
+    for (let w = 0; w < 6; w++) {
+      for (const sx of [1, -1]) {
+        const win = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.55), glow(0xffd98a, 0.85))
+        win.position.set(sx * 1.16, 2.25, -3.8 + w * 1.5)
+        win.rotation.y = (sx * Math.PI) / 2
+        cb.add(win)
+      }
+    }
+    coachBodies.push(cb)
+    bogie(g, cz - 3.5)
+    bogie(g, cz + 3.5)
+  }
+
+  // brake sparks: a small particle pool that sprays from the shoes
+  const nSparks = 60
+  const sparkPos = new Float32Array(nSparks * 3)
+  const sparkVel = new Float32Array(nSparks * 3)
+  const sparkLife = new Float32Array(nSparks)
+  const sparkGeo = new THREE.BufferGeometry()
+  sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3))
+  const sparks = new THREE.Points(sparkGeo, new THREE.PointsMaterial({ color: 0xffa040, size: 0.12, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }))
+  sparks.frustumCulled = false
+  g.add(sparks)
+  let nextSpark = 0
+
+  let prevZ: number | null = null
+  let speed = 0
+  let prevSpeed = 0
+  let decel = 0
+  const noseOffset = -len / 2 - 0.9
+
+  const loco: Loco = {
+    group: g,
+    noseOffset,
+    facing,
+    get speed() {
+      return speed
+    },
+    moveTo(noseZ, dt, t) {
+      g.position.z = noseZ + facing * noseOffset
+      const z = g.position.z
+      if (prevZ !== null && dt > 0) {
+        const dz = z - prevZ
+        // ignore the jump when a vignette loops back to its start
+        const v = Math.abs(dz) > 6 ? 0 : Math.abs(dz) / dt
+        speed += (v - speed) * Math.min(dt * 6, 1)
+        if (Math.abs(dz) <= 6) for (const w of wheels) w.rotation.x += (facing * dz) / 0.42
+      }
+      prevZ = z
+      const a = dt > 0 ? (speed - prevSpeed) / dt : 0
+      prevSpeed = speed
+      decel += (Math.max(-a, 0) - decel) * Math.min(dt * 4, 1)
+      // sprung body: bob and roll grow with speed
+      const s = Math.min(speed / 20, 1)
+      body.position.y = Math.sin(t * 9.5) * 0.025 * s + Math.sin(t * 3.1) * 0.012 * s
+      body.rotation.z = Math.sin(t * 2.3) * 0.008 * s
+      coachBodies.forEach((cb, i) => {
+        cb.position.y = Math.sin(t * 8.7 + i * 1.3) * 0.03 * s
+        cb.rotation.z = Math.sin(t * 2.1 + i) * 0.012 * s
+      })
+      // pantograph arcing, more often at speed
+      arc.visible = speed > 3 && Math.random() < 0.025 + 0.05 * s
+      if (arc.visible) arc.scale.setScalar(0.8 + Math.random() * 1.6)
+      // brakes: shoes heat up and spark under hard deceleration
+      const heat = Math.min(Math.max((decel - 0.25) / 0.6, 0), 1) * (speed > 0.5 ? 1 : 0)
+      for (const m of shoes) m.color.setRGB(0.16 + heat * 0.84, 0.1 + heat * 0.32, 0.06)
+      if (heat > 0.2) {
+        for (let k = 0; k < 3; k++) {
+          const i = nextSpark++ % nSparks
+          const w = wheels[(Math.random() * wheels.length) | 0]!
+          sparkPos[i * 3] = w.position.x
+          sparkPos[i * 3 + 1] = 0.35
+          sparkPos[i * 3 + 2] = w.position.z
+          sparkVel[i * 3] = (Math.random() - 0.5) * 2
+          sparkVel[i * 3 + 1] = 1 + Math.random() * 2
+          sparkVel[i * 3 + 2] = 2 + Math.random() * 3
+          sparkLife[i] = 0.5
+        }
+      }
+      for (let i = 0; i < nSparks; i++) {
+        if (sparkLife[i]! <= 0) {
+          sparkPos[i * 3 + 1] = -50
+          continue
+        }
+        sparkLife[i] = sparkLife[i]! - dt
+        sparkVel[i * 3 + 1] = sparkVel[i * 3 + 1]! - 9.8 * dt
+        sparkPos[i * 3] = sparkPos[i * 3]! + sparkVel[i * 3]! * dt
+        sparkPos[i * 3 + 1] = Math.max(sparkPos[i * 3 + 1]! + sparkVel[i * 3 + 1]! * dt, 0.3)
+        sparkPos[i * 3 + 2] = sparkPos[i * 3 + 2]! + sparkVel[i * 3 + 2]! * dt
+      }
+      sparkGeo.attributes.position!.needsUpdate = true
+    },
+  }
+  return loco
 }
+
+function beamBetween(a: THREE.Vector3, b: THREE.Vector3, r: number, mat: THREE.Material) {
+  const len = a.distanceTo(b)
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 6), mat)
+  m.position.copy(a).lerp(b, 0.5)
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize())
+  return m
+}
+
+/** Overhead line: masts with cantilevers on the left of the track, contact + catenary wire. */
+export function makeCatenary(from: number, to: number, spacing = 45) {
+  const g = new THREE.Group()
+  const mastMat = std(0x7c8070, { metalness: 0.5, roughness: 0.5 })
+  const wireMat = new THREE.MeshBasicMaterial({ color: 0x8c8a78 })
+  for (let z = from; z > to; z -= spacing) {
+    const mast = new THREE.Mesh(new THREE.BoxGeometry(0.28, 7.4, 0.28), mastMat)
+    mast.position.set(-3.4, 3.7, z)
+    g.add(mast)
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.1, 0.1), mastMat)
+    arm.position.set(-1.6, 6.5, z)
+    g.add(arm)
+    const brace = beamBetween(new THREE.Vector3(-3.3, 5.4, z), new THREE.Vector3(-0.4, 6.45, z), 0.04, mastMat)
+    g.add(brace)
+    const insulator = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35, 8), std(0x9b5a3c))
+    insulator.rotation.z = Math.PI / 2
+    insulator.position.set(-3.05, 6.5, z)
+    g.add(insulator)
+  }
+  const len = from - to
+  const contact = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, len), wireMat)
+  contact.position.set(0, WIRE_Y + 0.02, (from + to) / 2)
+  g.add(contact)
+  const catenary = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, len), wireMat)
+  catenary.position.set(0, 6.45, (from + to) / 2)
+  g.add(catenary)
+  return g
+}
+
+/** Dusk sky dome: deep olive overhead, warm amber at the horizon (no fog). */
+export function makeSky() {
+  const geo = new THREE.SphereGeometry(700, 32, 16)
+  const mat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+    uniforms: {
+      top: { value: new THREE.Color(0x1f2d27) },
+      mid: { value: new THREE.Color(0x4a5a3a) },
+      horizon: { value: new THREE.Color(0xd9925a) },
+      haze: { value: new THREE.Color(C.night) },
+      below: { value: new THREE.Color(0x232b19) },
+    },
+    vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 horizon; uniform vec3 below; uniform vec3 haze; varying vec3 vDir;
+      void main(){
+        float h = vDir.y;
+        // warmer toward the far end of the line (-z), where the sun has set
+        float sunward = smoothstep(-0.2, -1.0, vDir.z);
+        vec3 hz = mix(haze, horizon, sunward * 0.8);
+        vec3 c = h > 0.0 ? mix(hz, mix(mid, top, smoothstep(0.1, 0.6, h)), smoothstep(0.02, 0.2, h)) : haze;
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  })
+  const m = new THREE.Mesh(geo, mat)
+  m.renderOrder = -1
+  return m
+}
+
 
 /** Lattice radio tower with a blinking aviation lamp. */
 export function makeTower(h = 16) {

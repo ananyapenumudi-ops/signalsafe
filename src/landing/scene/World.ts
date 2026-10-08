@@ -8,7 +8,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
-import { C, GAUGE, glow, haloTexture, label, makeCard, makeLoco, makeOrnament, makeSignal, makeStation, makeTag, makeTower, makeTrack, std } from './parts'
+import { C, GAUGE, TRACK_END, TRACK_START, glow, haloTexture, label, makeCard, makeCatenary, makeLoco, makeOrnament, makeSignal, makeSky, makeStation, makeTag, makeTower, makeTrack, std } from './parts'
 
 type Updater = (t: number, dt: number, focus: number) => void
 
@@ -67,9 +67,9 @@ export class World {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75))
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 1.3
+    this.renderer.toneMappingExposure = 1.45
     this.scene.background = new THREE.Color(C.night)
-    this.scene.fog = new THREE.FogExp2(C.night, 0.0135)
+    this.scene.fog = new THREE.FogExp2(C.night, 0.0085)
 
     this.composer = new EffectComposer(this.renderer)
     this.composer.addPass(new RenderPass(this.scene, this.camera))
@@ -187,22 +187,27 @@ export class World {
   // ── world ─────────────────────────────────────────────────
   private buildWorld() {
     const s = this.scene
-    s.add(new THREE.HemisphereLight(0xb7c6a4, 0x1a2010, 1.25))
-    const moon = new THREE.DirectionalLight(0xe4e9ff, 1.3)
-    moon.position.set(-30, 50, 20)
-    s.add(moon)
-    const rim = new THREE.DirectionalLight(0xffc78a, 0.35) // warm back light, as if from station lamps
-    rim.position.set(30, 18, -60)
-    s.add(rim)
+    // dusk: bright sky fill, a low warm sun at the far end of the line, a cool fill from behind
+    s.add(new THREE.HemisphereLight(0xdfe3c8, 0x3a3a22, 1.9))
+    const sun = new THREE.DirectionalLight(0xffb878, 1.7)
+    sun.position.set(20, 14, -120)
+    s.add(sun)
+    s.add(sun.target)
+    sun.target.position.set(0, 0, 0)
+    const fill = new THREE.DirectionalLight(0xc8d6ff, 0.8)
+    fill.position.set(-30, 40, 60)
+    s.add(fill)
+    s.add(makeSky())
 
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 1100), std(C.ground, { roughness: 1 }))
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), std(C.ground, { roughness: 1 }))
     ground.rotation.x = -Math.PI / 2
     ground.position.z = -350
     s.add(ground)
-    const grid = new THREE.GridHelper(1100, 275, 0x2c3820, 0x1f2816)
+    const grid = new THREE.GridHelper(1100, 275, 0x46553a, 0x354229)
     grid.position.set(0, 0.01, -350)
     s.add(grid)
     s.add(makeTrack())
+    s.add(makeCatenary(TRACK_START, TRACK_END))
 
     this.stars()
     this.hero()
@@ -227,7 +232,7 @@ export class World {
     }
     const g = new THREE.BufferGeometry()
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-    const pts = new THREE.Points(g, new THREE.PointsMaterial({ color: C.parch, size: 0.7, sizeAttenuation: true, fog: false, transparent: true, opacity: 0.8 }))
+    const pts = new THREE.Points(g, new THREE.PointsMaterial({ color: C.parch, size: 0.7, sizeAttenuation: true, fog: false, transparent: true, opacity: 0.45 }))
     this.scene.add(pts)
     // drifting fireflies near the track
     const m = 260
@@ -272,21 +277,21 @@ export class World {
     }
     this.updaters.push((t) => (orn.dots.rotation.z = t * 0.12))
 
-    const loco = makeLoco(2)
+    const loco = makeLoco(2, 1) // facing the camera
     this.scene.add(loco.group)
     const beamCone = new THREE.Mesh(
       new THREE.ConeGeometry(3.2, 26, 32, 1, true),
       new THREE.MeshBasicMaterial({ color: C.warm, transparent: true, opacity: 0.07, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
     )
     beamCone.rotation.x = -Math.PI / 2
-    beamCone.position.set(0, 2.05, loco.noseOffset - 13)
+    beamCone.position.set(0, 2.1, loco.noseOffset - 13)
     loco.group.add(beamCone)
     // approaches from z -150 to z -5 and slows to a stand before the signal, then repeats
-    this.updaters.push((t) => {
+    this.updaters.push((t, dt) => {
       const T = 16
       const k = (t % T) / T
       const e = 1 - Math.pow(1 - Math.min(k / 0.85, 1), 2.2)
-      loco.group.position.set(0, 0, -170 + e * 128 - loco.noseOffset)
+      loco.moveTo(-160 + e * 120, dt, t)
       beamCone.material.opacity = 0.07 * (k < 0.9 ? 1 : (1 - k) * 10)
     })
   }
@@ -356,7 +361,7 @@ export class World {
       const nose = -138 - k * 54
       if (nose > prevNose) lastTagZ = -138 // wrapped
       prevNose = nose
-      loco.group.position.z = nose - loco.noseOffset
+      loco.moveTo(nose, dt, t)
       for (const tg of tags) {
         if (tg.z <= -138 && nose <= tg.z && nose > tg.z - 1.5) {
           tg.heat = 1
@@ -475,12 +480,13 @@ export class World {
     curveLabel.position.set(-2.2, 6.4, z0 - 2)
     this.scene.add(curveLabel)
     let shown = ''
-    this.updaters.push((t) => {
+    this.updaters.push((t, dt) => {
       const T = 10
       const k = (t % T) / T
-      const travel = smooth(Math.min(k / 0.8, 1))
+      // cruise, then a Kavach full-service brake application down the curve
+      const travel = Math.min(k / 0.8, 1)
       const nose = z0 + (eoa + 4 - z0) * (1 - Math.pow(1 - travel, 2))
-      loco.group.position.z = nose - loco.noseOffset
+      loco.moveTo(nose, dt, t)
       const remaining = Math.max(nose - eoa, 0)
       maLine.scale.z = remaining
       maLine.position.z = nose - remaining / 2
