@@ -133,7 +133,7 @@ const CHAPTERS: Chapter[] = [
     eyebrow: 'Engineering',
     title: ['Deterministic ', 'to the byte'],
     side: 'left',
-    status: { kind: 'live', text: '63 tests · CI on every push' },
+    status: { kind: 'live', text: '81 tests · CI on every push' },
     body: [
       'Time moves in 100 ms ticks and 2 s frames, and all randomness comes from one seeded stream. The same scenario with the same seed gives the same log, every run, on every machine.',
       'Every number the engine enforces lives in one file, next to the clause it comes from. Property tests run thousands of random yards and speeds through it.',

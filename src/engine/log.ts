@@ -6,6 +6,7 @@
 import type { Aspect, BrakeLevel, Direction, FaultKind, PointPosition } from './schema'
 import type { MaPacket } from './svk/svk'
 import type { BrakeReason, Mode } from './ovk/supervision'
+import type { Threat } from './svk/collision'
 
 export type Source = 'TBC' | 'YARD' | 'SS' | 'RFID-S' | 'RMS' | 'FAULT' | 'DIS' | `OVK:${string}` | `SVK:${string}`
 
@@ -35,6 +36,16 @@ export interface EventDataMap {
   RADIO_FAILURE: { silentSec: number; limitSec: number }
   ACK_REQUEST: { prompt: 'RADIO_FAILURE'; deadlineSec: number }
   ACK: { prompt: 'RADIO_FAILURE'; afterSec: number }
+  /** SVK detected a collision situation and alerted the loco(s) concerned (SRS 14, 21.3(b–d)). */
+  SVK_SOS: { kind: Threat['kind']; trains: string[]; gapM: number }
+  SVK_SOS_CLEAR: { kind: Threat['kind']; trains: string[] }
+  /** DMI collision message on this loco (rear-end only on the rear loco, SRS 14.3). */
+  COLLISION_ALERT: { kind: Threat['kind']; other: string; gapM: number }
+  COLLISION_CLEAR: { kind: Threat['kind']; other: string }
+  /** Roll-back beyond the limit detected (SRS 13.1, 21.3(h)). */
+  ROLLBACK: { distanceM: number }
+  /** Ground truth from the bench: two train bodies overlap. Kavach did not prevent it. */
+  COLLISION: { trains: string[]; track: string; closingKmph: number }
   /** OVK detected it passed its end of authority (SRS 12, 21.3(a)). */
   SPAD: { signal: string | null; overrunM: number }
   OVK_DIRECTION: { direction: Direction; fromTags: [string, string] }

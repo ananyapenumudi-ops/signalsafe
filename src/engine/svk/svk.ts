@@ -23,6 +23,7 @@
 import { P } from '../params'
 import type { Aspect, Direction, PointPosition, Route } from '../schema'
 import { YardModel, type PointLookup } from '../yard'
+import type { Threat } from './collision'
 
 /** What the SVK reads from the yard (through relay/vital input cards). */
 export interface FieldInputs {
@@ -56,6 +57,8 @@ export interface MaPacket {
   eoa: string
   /** Signals shown more restrictively than the interlocking set them, and why. */
   restricted: { signal: string; reason: RestrictReason }[]
+  /** Loco-specific SoS (head-on) or rear-end target for this loco (SRS 14). */
+  threat?: Threat | null
 }
 
 const RANK: Record<Aspect, number> = { R: 0, Y: 1, YY: 2, G: 3 }
@@ -184,6 +187,8 @@ export function maChanged(a: MaPacket | null, b: MaPacket | null): boolean {
     a.aspect !== b.aspect ||
     a.nextAspect !== b.nextAspect ||
     a.eoa !== b.eoa ||
+    (a.threat?.kind ?? null) !== (b.threat?.kind ?? null) ||
+    (a.threat?.other ?? null) !== (b.threat?.other ?? null) ||
     JSON.stringify(a.restricted) !== JSON.stringify(b.restricted)
   )
 }

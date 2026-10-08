@@ -40,6 +40,13 @@ export class OvkPosition {
   private firstPair: (TagReading & { odoAtM: number }) | null = null
   private lastPair: string | null = null
 
+  /** Bench preset (FRS 8.2.2.2): start as if already running under Kavach. */
+  preset(absLocM: number, direction: Direction, tin: number): void {
+    this.direction = direction
+    this.tin = tin
+    this.ref = { absLocM, odoAtM: this.odoM }
+  }
+
   onOdometry(dxM: number): void {
     this.odoM += dxM
   }

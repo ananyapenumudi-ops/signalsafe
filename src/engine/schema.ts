@@ -23,6 +23,8 @@ export const Track = z.object({
   a: id,
   b: id,
   lengthM: z.number().positive(),
+  /** Block sections get collision assessment (SRS 14.7); station sections rely on SPAD/TIN conflict (14.6). */
+  section: z.enum(['station', 'block']).default('station'),
   /** Positive = rising in the nominal direction, per mille. */
   gradientPermille: z.number().default(0),
   /** Extra drawing vertices between a and b (schematic only). */
@@ -97,14 +99,22 @@ export const Driver = z.object({
   acksAfterSec: z.number().nonnegative().nullable().default(3),
   /** Respect the Staff Responsible ceiling and Kavach's permitted speed (false = keeps notching up). */
   obeysKavach: z.boolean().default(true),
+  /** Releases the brakes when stopped, letting a gradient roll the train back (S08). */
+  releasesBrakesAtStand: z.boolean().default(false),
 })
 
 export const Train = z.object({
   locoId: id,
   lengthM: z.number().positive(),
   maxKmph: z.number().positive().default(110),
-  start: z.object({ track: id, offsetM: z.number().nonnegative(), dir: Direction }),
-  driver: Driver.default({ acksAfterSec: 3, obeysKavach: true }),
+  start: z.object({
+    track: id,
+    offsetM: z.number().nonnegative(),
+    dir: Direction,
+    /** OVK already running under Kavach: direction, TIN and location known at t = 0 (FRS 8.2.2.2 preparation). */
+    preset: z.boolean().default(false),
+  }),
+  driver: Driver.default({ acksAfterSec: 3, obeysKavach: true, releasesBrakesAtStand: false }),
 })
 
 const at = { atSec: z.number().nonnegative() }

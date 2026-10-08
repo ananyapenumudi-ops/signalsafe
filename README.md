@@ -26,7 +26,10 @@ Weeks 1–4 of the [8-week plan](docs/SignalSafe-Documentation.pdf) are complete
 - [x] Week 3: reference Stationary Kavach: aspect → MA (SRS 5.4), control-table route proving and most-restrictive rule (SRS 12.1–12.2), aspect-change/flicker hold (SRS 5.2, 18.8), registration (SRS 17.3); new faults: point not detected, signal flicker
 - [x] 3D landing page: ten scroll-linked vignettes (tags, radio frames, MA + braking curve, faults, evaluation, architecture, determinism)
 - [x] Week 4: Radio Message Simulator (reports up, MAs down, loss/drop faults); OVK supervision with braking curve from the max safe front end (SRS 11.5.1), FSB/EB interventions, hold at a stand, trip on passing the EOA; radio fallback per SRS 20.1 (blank at 6 s, failure at 30/10 s, ack within 15 s or FSB); SR/FS/TRIP modes; scenarios **S01** (stop short of a red) and **S05/S05b** (radio silent); DMI panel with Ack button and scenario picker
-- [ ] Next: head-on / rear-end collision prevention (SRS 14), roll-back (SRS 13), LC auto-whistle (SRS 15), remaining scenarios
+- [x] Collision prevention (SRS 14): stationary-side assessment over all location reports in the block section; head-on → loco-specific SoS to both, EB immediately, released at 0 km/h; rear-end → target 300 m behind the front train's min safe rear end for the rear loco only; scenarios **S03** and **S04**
+- [x] Roll-back protection (SRS 13): signed train dynamics (force model with gradient, traction and brakes that hold at a stand); brake + warning after 5 m of roll-back, held until the pilot takes power; scenario **S08**
+- [x] Bench ground-truth collision detector, so a collision Kavach fails to prevent (e.g. an unregistered train) is caught and logged
+- [ ] Next: LC gate auto-whistle (SRS 15), PG mismatch / odometry-jump faults (S09, S12), Evaluation Tool
 - [ ] Weeks 5–8: Scenario Editor, DMI and SMOCIP simulators, Evaluation Tool, reports
 
 ## Run it

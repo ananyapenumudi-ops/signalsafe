@@ -73,6 +73,20 @@ export function describe(e: LogEvent): Described {
       return { text: `DMI asks loco pilot to acknowledge within ${e.data.deadlineSec} s`, tone: 'fault', clause: 'SRS 20.1.3' }
     case 'ACK':
       return { text: `Loco pilot acknowledged after ${e.data.afterSec} s`, tone: 'ovk', clause: 'SRS 3.5.5.7' }
+    case 'SVK_SOS':
+      return e.data.kind === 'HEAD_ON'
+        ? { text: `HEAD-ON: ${e.data.trains.join(' and ')} approaching on the same TIN, ${Math.round(e.data.gapM)} m apart → SoS to both`, tone: 'fault', clause: 'SRS 14.7' }
+        : { text: `REAR-END: ${e.data.trains[0]} closing on the train ahead (${Math.round(e.data.gapM)} m) → target to rear loco only`, tone: 'fault', clause: 'SRS 14.3' }
+    case 'SVK_SOS_CLEAR':
+      return { text: `${e.data.kind === 'HEAD_ON' ? 'Head-on' : 'Rear-end'} situation over (${e.data.trains.join(', ')})`, tone: 'svk', clause: 'SRS 14.5' }
+    case 'COLLISION_ALERT':
+      return { text: `DMI: ${e.data.kind === 'HEAD_ON' ? 'head-on SoS' : 'rear-end warning'} for loco ${e.data.other}, ${Math.round(e.data.gapM)} m`, tone: 'fault', clause: e.data.kind === 'HEAD_ON' ? 'SRS 14.2' : 'SRS 14.3' }
+    case 'COLLISION_CLEAR':
+      return { text: `DMI: ${e.data.kind === 'HEAD_ON' ? 'head-on SoS' : 'rear-end warning'} withdrawn`, tone: 'ovk', clause: 'SRS 14.5' }
+    case 'ROLLBACK':
+      return { text: `Roll-back of ${e.data.distanceM} m against the cab direction → brake + warning`, tone: 'fault', clause: 'SRS 13.1' }
+    case 'COLLISION':
+      return { text: `COLLISION: ${e.data.trains.join(' and ')} on ${e.data.track} at ${Math.round(e.data.closingKmph)} km/h closing speed (bench ground truth)`, tone: 'fault' }
     case 'SPAD':
       return { text: `Passed end of authority${e.data.signal ? ` at ${e.data.signal}` : ''} by ${e.data.overrunM} m: TRIP`, tone: 'fault', clause: 'SRS 12 · 21.3(a)' }
     case 'SVK_REGISTER':
@@ -104,6 +118,9 @@ const BRAKE_WHY = {
   SR_CEILING: { text: 'over the Staff Responsible ceiling', clause: 'Annex A2 (stand-in)' },
   NO_ACK: { text: 'radio failure not acknowledged in 15 s', clause: 'SRS 20.1.3' },
   TRIP: { text: 'trip after passing the EOA', clause: 'SRS 12' },
+  HEAD_ON: { text: 'head-on SoS from the stationary side', clause: 'SRS 14.2 · 14.7' },
+  REAR_END: { text: 'closing on the train ahead (300 m margin)', clause: 'SRS 14.3' },
+  ROLLBACK: { text: 'rolled back more than 5 m', clause: 'SRS 13.1' },
 } as const
 
 const REASON = { ROUTE_MISMATCH: 'route not proved (points)', ROUTE_OCCUPIED: 'route occupied', HOLD: 'aspect-change hold' } as const

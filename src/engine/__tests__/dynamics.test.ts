@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import fc from 'fast-check'
-import { driverAccel, stepKinematics } from '../dynamics'
+import { driverCommand, gradientAccel, stepKinematics, stepTrain } from '../dynamics'
 import { DT, PARAMS, mps } from '../params'
 
 describe('Speed simulator (FRS 7.6.5)', () => {
@@ -35,22 +35,39 @@ describe('Speed simulator (FRS 7.6.5)', () => {
     expect(k.dx).toBeGreaterThan(0)
   })
 
-  it('a Kavach brake command overrides the driver', () => {
-    expect(driverAccel({ v: 10, targetKmph: 100, maxKmph: 110, gradientPermille: 0, kavachBrake: 'EB' })).toBe(-PARAMS.ebDecel.value)
+  it('a Kavach brake command overrides the driver and cuts traction (SRS 3.5.6.3)', () => {
+    expect(driverCommand({ v: 10, targetKmph: 100, maxKmph: 110, gradientPermille: 0, kavachBrake: 'EB' })).toEqual({ traction: 0, brake: PARAMS.ebDecel.value })
   })
 
-  it('comes to a full stand when the target is zero', () => {
+  const drive = (v: number, targetKmph: number, grad = 0, releases = false) =>
+    stepTrain(v, driverCommand({ v, targetKmph, maxKmph: 110, gradientPermille: grad, kavachBrake: null, releasesBrakesAtStand: releases }), gradientAccel(grad), DT).v
+
+  it('comes to a full stand when the target is zero, and holds there on a gradient', () => {
     let v = mps(30)
-    for (let i = 0; i < 400; i++) v = stepKinematics(v, driverAccel({ v, targetKmph: 0, maxKmph: 110, gradientPermille: 0, kavachBrake: null }), DT).v
+    for (let i = 0; i < 400; i++) v = drive(v, 0, 8)
     expect(v).toBe(0)
   })
 
-  it('reaches and holds the target speed without overshoot', () => {
-    let v = 0
-    for (let i = 0; i < 2000; i++) {
-      v = stepKinematics(v, driverAccel({ v, targetKmph: 60, maxKmph: 110, gradientPermille: 0, kavachBrake: null }), DT).v
-      expect(v).toBeLessThanOrEqual(mps(61))
+  it('reaches and holds the target speed without overshoot, on the level and uphill', () => {
+    for (const grad of [0, 5]) {
+      let v = 0
+      for (let i = 0; i < 3000; i++) {
+        v = drive(v, 60, grad)
+        expect(v).toBeLessThanOrEqual(mps(61))
+      }
+      expect(v).toBeGreaterThan(mps(59))
     }
-    expect(v).toBeGreaterThan(mps(59))
+  })
+
+  it('rolls back down a rising gradient when the brakes are released at a stand', () => {
+    let v = 0
+    for (let i = 0; i < 50; i++) v = drive(v, 0, 8, true)
+    expect(v).toBeLessThan(0)
+  })
+
+  it('a brake opposing motion stops a rolling-back train without reversing it', () => {
+    const k = stepTrain(-0.03, { traction: 0, brake: 0.6 }, gradientAccel(8), DT)
+    expect(k.v).toBe(0)
+    expect(k.dx).toBeLessThan(0)
   })
 })

@@ -6,6 +6,9 @@ const BRAKE_TEXT = {
   SR_CEILING: 'over the SR ceiling',
   NO_ACK: 'radio failure not acknowledged',
   TRIP: 'trip: passed end of authority',
+  HEAD_ON: 'head-on SoS',
+  REAR_END: 'keeping 300 m behind the train ahead',
+  ROLLBACK: 'roll-back protection',
 } as const
 
 const fmt = (m: number) => `${Math.round(m).toLocaleString('en-IN')} m`
@@ -63,6 +66,20 @@ export function TrainPanel({ t, onAck }: { t: TrainSnapshot; onAck: () => void }
             <span style={{ width: `${Math.min(Math.max(d.targetDistM, 0) / 2000, 1) * 100}%` }} />
           </div>
           <b>{fmt(Math.max(d.targetDistM, 0))}</b>
+        </div>
+      )}
+      {(d.threat || d.rollback) && (
+        <div className="alertbar eb">
+          {d.threat && (
+            <span>
+              <b>{d.threat.kind === 'HEAD_ON' ? 'HEAD-ON SoS' : 'REAR-END'}</b> loco {d.threat.other} · {fmt(Math.max(d.threat.gapM, 0))}
+            </span>
+          )}
+          {d.rollback && (
+            <span>
+              <b>ROLL-BACK</b> brake applied
+            </span>
+          )}
         </div>
       )}
       {(d.brake || d.ackPending) && (

@@ -34,7 +34,7 @@ describe('YardModel', () => {
   it('only places signals that face the direction of travel', () => {
     const y = new YardModel(yard)
     expect(y.signalsOnRoute(y.buildRoute('A_APP', 'nominal')).map((s) => s.item.id)).toEqual(['S1', 'S3', 'S5', 'S11', 'S13'])
-    expect(y.signalsOnRoute(y.buildRoute('B_EXIT', 'reverse'))).toEqual([])
+    expect(y.signalsOnRoute(y.buildRoute('B_EXIT', 'reverse')).map((s) => s.item.id)).toEqual(['S22', 'S24', 'S26', 'S28'])
   })
 })
 

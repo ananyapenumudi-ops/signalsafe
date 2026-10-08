@@ -11,7 +11,7 @@
  *   7. On frame boundaries: location report up through the RMS, SVK builds
  *      the MA, MA down through the RMS to the OVK; periodic loggers
  */
-import { driverAccel, stepKinematics } from './dynamics'
+import { driverCommand, gradientAccel, stepTrain } from './dynamics'
 import { EventLog, type LogEvent } from './log'
 import { OvkPosition } from './ovk/position'
 import { OvkSupervisor, type CauseKey } from './ovk/supervision'
@@ -20,6 +20,7 @@ import { crossed } from './rfid'
 import { Rng } from './rng'
 import { Scenario, type Aspect, type BrakeLevel, type Fault, type ScenarioInput, type Signal, type Tag, type Train } from './schema'
 import { ReferenceSvk, maChanged, type FieldInputs, type MaPacket } from './svk/svk'
+import { assessCollisions, type Threat, type TrainReport } from './svk/collision'
 import { YardModel, type OnRoute, type RouteSegment } from './yard'
 import type { Snapshot } from './snapshot'
 
@@ -41,6 +42,12 @@ export interface TrainState {
   /** When the DMI auto-player will press Ack, if a prompt is pending. */
   ackAt: number | null
   ma: MaPacket | null
+  /** Wrecked in a ground-truth collision: no longer moves. */
+  crashed: boolean
+  /** Threat the SVK currently holds for this loco (for SVK_SOS logging). */
+  threat: Threat | null
+  /** The pilot is calling for traction this tick. */
+  traction: boolean
   atEndOfLine: boolean
 }
 
@@ -117,10 +124,14 @@ export class Simulation {
       causes: {},
       ackAt: null,
       ma: null,
+      crashed: false,
+      threat: null,
+      traction: false,
       atEndOfLine: false,
     }
     this.refreshObjects(t)
     this.log.append({ source: 'TBC', type: 'ROUTE_SET', train: spec.locoId, data: { tracks: route.map((s) => s.track.id) } })
+    if (spec.start.preset) t.ovk.preset(this.trueAbsLocM(t), spec.start.dir, this.yard.track(spec.start.track).tin)
     return t
   }
 
@@ -200,19 +211,30 @@ export class Simulation {
 
   // ── 2–4. per-train motion, tags, signals ──────────────────
   private moveTrain(t: TrainState) {
-    if (t.atEndOfLine) return
+    if (t.atEndOfLine || t.crashed) return
     const id = t.spec.locoId
     const { seg } = YardModel.locate(t.route, t.routeM)
     const gradient = (seg.dir === 'nominal' ? 1 : -1) * seg.track.gradientPermille
     // an obedient pilot (DMI auto-player) keeps a little under Kavach's permitted speed
     const permitted = t.sup.dmi(this.tSim).permittedKmph
     const target = t.spec.driver.obeysKavach && permitted !== null ? Math.min(t.targetKmph, Math.max(permitted - 4, 0)) : t.targetKmph
-    t.accel = driverAccel({ v: t.speed, targetKmph: target, maxKmph: t.spec.maxKmph, gradientPermille: gradient, kavachBrake: t.kavachBrake })
-    const k = stepKinematics(t.speed, t.accel, DT)
+    const cmd = driverCommand({
+      v: t.speed,
+      targetKmph: target,
+      maxKmph: t.spec.maxKmph,
+      gradientPermille: gradient,
+      kavachBrake: t.kavachBrake,
+      releasesBrakesAtStand: t.spec.driver.releasesBrakesAtStand,
+    })
+    // what the pilot asks for, before Kavach cuts it (used to release a roll-back brake)
+    t.traction = driverCommand({ v: t.speed, targetKmph: target, maxKmph: t.spec.maxKmph, gradientPermille: gradient, kavachBrake: null }).traction > 0
+    const k = stepTrain(t.speed, cmd, gradientAccel(gradient), DT)
     const from = t.routeM
+    const routeStart = t.route[0]!.startM
     const routeEnd = t.route[t.route.length - 1]!.endM
-    t.routeM = Math.min(from + k.dx, routeEnd)
-    t.speed = t.routeM >= routeEnd ? 0 : k.v
+    t.routeM = Math.min(Math.max(from + k.dx, routeStart), routeEnd)
+    t.accel = (k.v - t.speed) / DT
+    t.speed = t.routeM >= routeEnd || (t.routeM <= routeStart && k.v < 0) ? 0 : k.v
     const dx = t.routeM - from
 
     // ODO-A: pulse generators may over/under-read under an ODO_SCALE fault
@@ -245,13 +267,40 @@ export class Simulation {
       }
     }
 
-    for (const { item: sig } of crossed(t.signalsAhead, from, t.routeM)) {
+    for (const { item: sig } of t.routeM > from ? crossed(t.signalsAhead, from, t.routeM) : []) {
       this.log.append({ source: 'YARD', type: 'SIGNAL_PASSED', train: id, data: { signal: sig.id, aspect: this.aspects.get(sig.id) ?? 'R' } })
     }
 
     if (t.routeM >= routeEnd) {
       t.atEndOfLine = true
       this.log.append({ source: 'SS', type: 'END_OF_LINE', train: id, data: { track: t.route[t.route.length - 1]!.track.id } })
+    }
+  }
+
+  /** Ground truth: do any two train bodies overlap? (The bench's own check, not Kavach's.) */
+  private detectCollisions() {
+    for (let i = 0; i < this.trains.length; i++) {
+      for (let j = i + 1; j < this.trains.length; j++) {
+        const a = this.trains[i]!
+        const b = this.trains[j]!
+        if (a.crashed && b.crashed) continue
+        const spans = (t: TrainState) => bodySpans(t.route, Math.max(t.routeM - t.spec.lengthM, t.route[0]!.startM), t.routeM)
+        for (const sa of spans(a)) {
+          for (const sb of spans(b)) {
+            if (sa.track !== sb.track) continue
+            const lo = Math.max(Math.min(sa.fromM, sa.toM), Math.min(sb.fromM, sb.toM))
+            const hi = Math.min(Math.max(sa.fromM, sa.toM), Math.max(sb.fromM, sb.toM))
+            if (hi <= lo) continue
+            const closing = Math.abs(kmph(a.speed)) + Math.abs(kmph(b.speed))
+            this.log.append({ source: 'TBC', type: 'COLLISION', locM: round3(this.trueAbsLocM(a)), data: { trains: [a.spec.locoId, b.spec.locoId], track: sa.track, closingKmph: round3(closing) } })
+            for (const t of [a, b]) {
+              t.crashed = true
+              t.speed = 0
+            }
+            return
+          }
+        }
+      }
     }
   }
 
@@ -265,7 +314,7 @@ export class Simulation {
     const o = t.ovk
     const pos = o.absLocM === null || o.direction === 'undefined' ? null : { absLocM: o.absLocM, uncertaintyM: o.uncertaintyM, dir: (o.direction === 'nominal' ? 1 : -1) as 1 | -1 }
     const scale = this.faultActive('ODO_SCALE').find((f) => f.train === id)?.factor ?? 1
-    this.logSup(t, t.sup.step(this.tSim, t.speed * scale, pos, t.spec.maxKmph))
+    this.logSup(t, t.sup.step(this.tSim, t.speed * scale, pos, t.spec.maxKmph, t.traction))
     t.kavachBrake = t.sup.brake
   }
 
@@ -283,6 +332,8 @@ export class Simulation {
         if (after !== null) t.ackAt = this.tSim + after
       }
       if (ev.type === 'SPAD') t.causes.trip = seq
+      if (ev.type === 'COLLISION_ALERT') t.causes.threat = seq
+      if (ev.type === 'ROLLBACK') t.causes.rollback = seq
     }
   }
 
@@ -294,7 +345,7 @@ export class Simulation {
   }
 
   /** RMS: is this packet delivered? Logs the packet either way. */
-  private radio(dir: 'up' | 'down', kind: 'LOC' | 'MA', t: TrainState): { delivered: boolean; seq: number } {
+  private radio(dir: 'up' | 'down', kind: 'LOC' | 'MA', t: TrainState, carries: number[] = []): { delivered: boolean; seq: number } {
     const loss = this.faultActive('RADIO_LOSS').find((f) => (f.direction === 'both' || f.direction === dir) && (!f.train || f.train === t.spec.locoId))
     const drop = loss ? undefined : this.faultActive('RADIO_DROP').find((f) => (f.direction === 'both' || f.direction === dir) && this.rmsRng.chance(f.probability))
     const fault = loss ?? drop
@@ -303,7 +354,7 @@ export class Simulation {
       type: 'RADIO_PACKET',
       train: t.spec.locoId,
       data: fault ? { dir, kind, delivered: false, fault: fault.id } : { dir, kind, delivered: true },
-      causedBy: fault ? [this.activeFaults.get(fault.id)!] : [],
+      causedBy: fault ? [this.activeFaults.get(fault.id)!] : carries,
     })
     // bench-side causality: remember the first packet lost (either way) since the last
     // delivered MA, so the OVK's reaction to silence can cite it
@@ -314,13 +365,58 @@ export class Simulation {
 
   // ── 7. radio frame: report up, MA down ────────────────────
   private runSvks() {
+    // phase 1: location reports up through the RMS
+    const received: { t: TrainState; report: TrainReport; upSeq: number }[] = []
     for (const t of this.trains) {
       const o = t.ovk
       if (o.direction === 'undefined' || o.absLocM === null || o.tin === null) continue // SRS 17.3
-      const id = t.spec.locoId
-      const report = { locoId: id, absLocM: o.absLocM, direction: o.direction, tin: o.tin }
+      const scale = this.faultActive('ODO_SCALE').find((f) => f.train === t.spec.locoId)?.factor ?? 1
+      const report: TrainReport = {
+        locoId: t.spec.locoId,
+        absLocM: o.absLocM,
+        direction: o.direction,
+        tin: o.tin,
+        lengthM: t.spec.lengthM,
+        uncertaintyM: o.uncertaintyM,
+        speed: t.speed * scale,
+      }
       const up = this.radio('up', 'LOC', t)
-      if (!up.delivered) continue
+      if (up.delivered) received.push({ t, report, upSeq: up.seq })
+    }
+    // phase 2: collision assessment over everything received (SRS 14)
+    const blockTins = new Set(this.scenario.yard.tracks.filter((tr) => tr.section === 'block').map((tr) => tr.tin))
+    const threats = assessCollisions(received.map((r) => r.report), (tin) => blockTins.has(tin))
+    const upSeqOf = new Map(received.map((r) => [r.t.spec.locoId, r.upSeq]))
+    const sosSeq = new Map<string, number>()
+    for (const { t } of received) {
+      const next = threats.get(t.spec.locoId) ?? null
+      const prev = t.threat
+      const changed = (prev?.kind ?? null) !== (next?.kind ?? null) || (prev?.other ?? null) !== (next?.other ?? null)
+      if (changed && prev && (prev.kind === 'REAR_END' || t.spec.locoId < prev.other)) {
+        this.log.append({ source: 'SVK:pool', type: 'SVK_SOS_CLEAR', train: t.spec.locoId, data: { kind: prev.kind, trains: [t.spec.locoId, prev.other] } })
+      }
+      if (changed && next) {
+        // a head-on pair is logged once; each loco's packet cites it
+        const pairKey = next.kind === 'HEAD_ON' ? [t.spec.locoId, next.other].sort().join('|') : `${t.spec.locoId}>${next.other}`
+        let seq = sosSeq.get(pairKey)
+        if (seq === undefined) {
+          seq = this.log.append({
+            source: 'SVK:pool',
+            type: 'SVK_SOS',
+            train: t.spec.locoId,
+            data: { kind: next.kind, trains: next.kind === 'HEAD_ON' ? [t.spec.locoId, next.other] : [t.spec.locoId], gapM: next.gapM },
+            causedBy: [upSeqOf.get(t.spec.locoId), upSeqOf.get(next.other)].filter((x): x is number => x !== undefined),
+          })
+          sosSeq.set(pairKey, seq)
+        }
+        sosSeq.set(t.spec.locoId, seq)
+      }
+      t.threat = next
+    }
+    // phase 3: MA per loco, down through the RMS
+    for (const { t, report: r } of received) {
+      const id = t.spec.locoId
+      const report = { locoId: id, absLocM: r.absLocM, direction: r.direction, tin: r.tin }
       // Serving SVK = owner of the approaching signal (handover per Annex P comes later)
       const approaching = this.svks[0]?.signalsAhead(report, this.inputs)?.ahead[0]?.item.id
       const svk = (approaching && this.svks.find((s) => s.ownsSignal(approaching))) || this.svks.find((s) => s.id === t.ma?.svk) || this.svks[0]
@@ -329,7 +425,9 @@ export class Simulation {
         svk.registered.add(id)
         this.log.append({ source: `SVK:${svk.id}`, type: 'SVK_REGISTER', train: id, data: { svk: svk.id, absLocM: report.absLocM, direction: report.direction, tin: report.tin } })
       }
-      const packet = svk.computeMa(report, this.inputs)
+      const base = svk.computeMa(report, this.inputs)
+      const packet = base ? { ...base, threat: t.threat } : null
+      let maSeq: number | undefined
       if (packet && maChanged(t.ma, packet)) {
         const causes = new Set<number>()
         const add = (c: number | undefined) => c !== undefined && causes.add(c)
@@ -343,11 +441,13 @@ export class Simulation {
           if (r.reason === 'ROUTE_MISMATCH') this.routePointCauses(r.signal).forEach(add)
           else add(this.aspectCause.get(r.signal))
         }
-        this.log.append({ source: `SVK:${svk.id}`, type: 'SVK_MA', train: id, data: packet, causedBy: [...causes].sort((a, b) => a - b) })
+        const sos = sosSeq.get(id)
+        if (sos !== undefined) causes.add(sos)
+        maSeq = this.log.append({ source: `SVK:${svk.id}`, type: 'SVK_MA', train: id, data: packet, causedBy: [...causes].sort((a, b) => a - b) })
       }
       t.ma = packet
       if (!packet) continue
-      const down = this.radio('down', 'MA', t)
+      const down = this.radio('down', 'MA', t, maSeq === undefined ? [] : [maSeq])
       if (!down.delivered) continue
       t.causes.ma = down.seq
       this.logSup(t, t.sup.onMa(packet, report.absLocM, report.direction === 'nominal' ? 1 : -1, this.tSim))
@@ -383,6 +483,7 @@ export class Simulation {
     if (this.ended) return
     this.runController()
     for (const t of this.trains) this.moveTrain(t)
+    this.detectCollisions()
     for (const t of this.trains) this.superviseTrain(t)
     this.tick++
     for (const svk of this.svks) svk.observe(this.tSim, this.inputs)
