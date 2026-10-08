@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SignalSafe · Project Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;0,6..96,600;0,6..96,700;1,6..96,500&family=Manrope:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --olive: #33401f; --olive-2: #46562b; --olive-3: #5d6f3a;
+    --sage: #a6b59b; --sage-soft: #e1e7d8; --sage-deep: #7b8f6c;
+    --parch: #efe7cd; --parch-soft: #f9f5e7; --sand: #d9cda8;
+    --rust: #c4552b; --rust-soft: #f4d7c7; --rust-deep: #9c3f1b;
+    --brass: #c9a46a; --blush: #ecd2c0;
+    --ink: #20251a; --ink-soft: #4f5642; --ink-mute: #858b74;
+    --sig-red: #c8372d; --sig-yel: #e3a826; --sig-grn: #3f8f4f;
+  }
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  @page cover { margin: 0; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin: 0; color: var(--ink); font-family: 'Manrope', 'Segoe UI', sans-serif; font-size: 9.3pt; line-height: 1.5; background: #fff; }
+  h1, h2, h3 { font-family: 'Bodoni Moda', 'Didot', Georgia, serif; font-weight: 600; line-height: 1.1; margin: 0; }
+  .mono, .eyebrow, th, .tag, .ref { font-family: 'JetBrains Mono', Consolas, monospace; font-weight: 700; }
+  p { margin: 0 0 7pt; }
+  b, strong { font-weight: 700; }
+  em { font-family: 'Bodoni Moda', Georgia, serif; font-style: italic; font-size: 1.06em; }
+
+  /* ── cover ───────────────────────────────── */
+  .cover { page: cover; height: 297mm; width: 210mm; position: relative; overflow: hidden; background: var(--olive); color: var(--parch); }
+  .cover .grain { position: absolute; inset: 0; background-image: radial-gradient(rgba(239,231,205,.07) 1px, transparent 1.2px); background-size: 3.2mm 3.2mm; }
+  .cover .topbar { position: absolute; top: 12mm; left: 16mm; right: 16mm; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm; font-size: 6.6pt; letter-spacing: .06em; color: var(--sage); }
+  .cover .topbar div { border-left: 1px solid rgba(166,181,155,.45); padding-left: 3mm; }
+  .cover .topbar span { display: block; color: rgba(166,181,155,.7); font-family: 'JetBrains Mono', monospace; font-size: 5.8pt; letter-spacing: .14em; text-transform: uppercase; }
+  .cover .badge { position: absolute; top: 31mm; left: 50%; transform: translateX(-50%); width: 12mm; height: 12mm; border-radius: 50%; background: var(--rust); color: var(--parch); font-family: 'Bodoni Moda', serif; font-weight: 600; font-size: 11pt; display: flex; align-items: center; justify-content: center; }
+  .cover .art { position: absolute; top: 48mm; left: 0; width: 210mm; height: 125mm; }
+  .cover h1 { position: absolute; top: 160mm; width: 100%; text-align: center; font-size: 66pt; font-weight: 500; letter-spacing: -.01em; color: var(--parch); }
+  .cover h1 i { font-style: italic; color: var(--brass); }
+  .cover .tagline { position: absolute; top: 189mm; left: 30mm; right: 30mm; text-align: center; font-size: 11pt; line-height: 1.5; color: var(--sage-soft); }
+  .cover .paper { position: absolute; left: 0; right: 0; bottom: 0; height: 66mm; background: var(--parch); }
+  .cover .paper svg { position: absolute; top: -6mm; left: 0; width: 100%; height: 7mm; }
+  .cover .meta { position: absolute; left: 16mm; right: 16mm; bottom: 18mm; display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 5mm; color: var(--ink); }
+  .cover .meta div { border-top: 1.5px solid var(--ink); padding-top: 3mm; }
+  .cover .meta span { display: block; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 6.6pt; letter-spacing: .16em; text-transform: uppercase; color: var(--rust-deep); margin-bottom: 1.5mm; }
+  .cover .meta b { font-family: 'Bodoni Moda', serif; font-weight: 600; font-size: 11.5pt; line-height: 1.25; display: block; }
+  .cover .meta small { display: block; font-size: 7.6pt; color: var(--ink-soft); margin-top: 1mm; }
+  .cover .stamp { position: absolute; right: 16mm; bottom: 49mm; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 6.6pt; letter-spacing: .18em; color: var(--rust); border: 1.5px solid var(--rust); border-radius: 99px; padding: 1.2mm 3.2mm; transform: rotate(-4deg); background: var(--parch); }
+
+  /* ── pages ───────────────────────────────── */
+  section { break-before: page; }
+  section.flow-on { break-before: auto; margin-top: 7mm; }
+  .eyebrow { font-size: 7.4pt; letter-spacing: .22em; text-transform: uppercase; color: var(--rust); margin-bottom: 2.5mm; display: flex; align-items: center; gap: 2.5mm; }
+  .eyebrow::before { content: ''; width: 7mm; height: 0; border-top: 1.5px solid var(--rust); }
+  h2 { font-size: 24pt; margin-bottom: 4mm; font-weight: 500; letter-spacing: -.005em; }
+  h2 i { color: var(--olive-3); }
+  h3 { font-size: 12.5pt; margin: 5mm 0 2mm; }
+  .lead { font-size: 10.4pt; color: var(--ink-soft); margin-bottom: 4mm; line-height: 1.5; }
+  ul { margin: 0 0 6pt; padding-left: 4.5mm; }
+  li { margin: 0 0 2.4pt; }
+  li::marker { color: var(--rust); }
+
+  .box { border: 1px solid rgba(32,37,26,.22); border-radius: 3mm; padding: 3.8mm 5mm; margin: 0 0 4mm; break-inside: avoid; background: var(--parch-soft); position: relative; }
+  .box.sage { background: var(--sage-soft); } .box.rust { background: var(--rust-soft); } .box.parch { background: var(--parch); } .box.blush { background: #f6e6da; }
+  .box.dark { background: var(--olive); color: var(--parch); border-color: var(--olive); }
+  .box.dark h3 { color: var(--parch); } .box.dark li::marker { color: var(--brass); }
+  .box h3 { margin-top: 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+  .grid2 > .box, .grid3 > .box { margin: 0; }
+  .grid-gap { margin-bottom: 4mm; }
+
+  table { width: 100%; border-collapse: collapse; margin: 0 0 4mm; font-size: 8.3pt; }
+  thead { display: table-header-group; }
+  th { text-align: left; font-size: 6.6pt; letter-spacing: .13em; text-transform: uppercase; padding: 2.2mm 2.6mm; color: var(--parch); background: var(--olive); }
+  td { padding: 1.6mm 2.4mm; border-bottom: 1px solid rgba(32,37,26,.14); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--parch-soft); }
+  tr { break-inside: avoid; }
+  td.num, .ref { font-family: 'JetBrains Mono', monospace; font-weight: 700; white-space: nowrap; font-size: 7.6pt; color: var(--rust-deep); }
+  .tag { display: inline-block; font-size: 6.3pt; letter-spacing: .08em; text-transform: uppercase; border-radius: 99px; padding: .5mm 2mm; background: var(--sage); color: var(--ink); white-space: nowrap; }
+  .tag.mvp { background: var(--olive); color: var(--parch); } .tag.v2 { background: var(--sand); } .tag.later { background: var(--blush); }
+  .tag.sil4 { background: var(--rust); color: #fff; } .tag.nosil { background: var(--sage-soft); border: 1px solid var(--sage-deep); }
+
+  figure { margin: 0 0 4mm; break-inside: avoid; }
+  figcaption { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 6.9pt; letter-spacing: .05em; color: var(--ink-mute); margin-top: 2.2mm; }
+
+  .toc { list-style: none; padding: 0; margin: 0; }
+  .toc li { display: flex; gap: 4mm; align-items: baseline; padding: 2.1mm 0; border-bottom: 1px solid rgba(32,37,26,.15); font-family: 'Bodoni Moda', serif; font-size: 13.5pt; }
+  .toc li span { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 8pt; color: var(--rust); width: 9mm; }
+  .toc li em { font-family: 'Manrope', sans-serif; font-style: normal; color: var(--ink-mute); font-size: 8.6pt; margin-left: auto; }
+
+  .flow { display: flex; gap: 2mm; align-items: stretch; margin: 2mm 0 5mm; }
+  .flow div { flex: 1 1 0; background: var(--parch-soft); border-top: 2px solid var(--olive); padding: 2.4mm 2.6mm; font-size: 8.2pt; line-height: 1.4; }
+  .flow div b { display: block; font-family: 'JetBrains Mono', monospace; font-size: 6.8pt; letter-spacing: .1em; text-transform: uppercase; color: var(--rust); margin-bottom: 1mm; }
+
+  .stat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm; margin-bottom: 6mm; }
+  .stat div { border-radius: 3mm; padding: 4mm; background: var(--olive); color: var(--parch); }
+  .stat div:nth-child(2) { background: var(--sage); color: var(--ink); } .stat div:nth-child(3) { background: var(--rust); } .stat div:nth-child(4) { background: var(--parch); color: var(--ink); }
+  .stat b { display: block; font-family: 'Bodoni Moda', serif; font-weight: 500; font-size: 26pt; line-height: 1; margin-bottom: 1.5mm; }
+  .stat span { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 6.4pt; letter-spacing: .12em; text-transform: uppercase; }
+
+  .timeline { border-left: 1.5px solid var(--olive); margin-left: 2mm; padding-left: 6mm; }
+  .timeline .t { position: relative; margin-bottom: 3mm; break-inside: avoid; }
+  .timeline .t p { margin: 0; }
+  .timeline .t::before { content: ''; position: absolute; left: -8.1mm; top: 1mm; width: 3.2mm; height: 3.2mm; border-radius: 50%; background: #fff; border: 1.5px solid var(--olive); }
+  .timeline .t.key::before { background: var(--rust); border-color: var(--rust); }
+  .timeline .t .mono { font-size: 7.2pt; color: var(--rust); letter-spacing: .08em; }
+
+  .pri { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 6.2pt; letter-spacing: .1em; text-transform: uppercase; border-radius: 99px; padding: .4mm 1.8mm; margin-left: 1.5mm; vertical-align: 2px; }
+  .pri.next { background: var(--sage); } .pri.later { background: var(--sand); } .pri.res { background: var(--blush); }
+  .small { font-size: 8.2pt; color: var(--ink-soft); }
+  code { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 8pt; background: var(--parch); border-radius: 1mm; padding: 0 1.1mm; }
+  pre { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 7.6pt; line-height: 1.5; background: var(--ink); color: var(--parch); border-radius: 3mm; padding: 4mm 5mm; margin: 0 0 5mm; white-space: pre-wrap; break-inside: avoid; }
+  pre .c { color: var(--sage); } pre .k { color: var(--brass); } pre .s { color: #e7b49a; }
+
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; font-size: 8pt; line-height: 1.4; }
+  .modes div { background: var(--parch-soft); border-left: 2px solid var(--olive); padding: 1.8mm 2.6mm; }
+  .modes b { display: block; font-family: 'Bodoni Moda', serif; font-size: 9.6pt; margin-bottom: .6mm; }
+  .divider { height: 7mm; margin: 2mm 0 5mm; }
+  .aspect { display: inline-flex; gap: 1mm; vertical-align: -1px; }
+  .aspect i { width: 2.4mm; height: 2.4mm; border-radius: 50%; display: inline-block; background: #d7d2bf; }
+  .aspect i.r { background: var(--sig-red); } .aspect i.y { background: var(--sig-yel); } .aspect i.g { background: var(--sig-grn); }
+
+  /* scenario cards */
+  .scn { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .scn .card { border: 1px solid rgba(32,37,26,.2); border-radius: 3mm; padding: 3.2mm 4mm; break-inside: avoid; background: var(--parch-soft); }
+  .scn .card h4 { font-family: 'Bodoni Moda', serif; font-weight: 600; font-size: 11pt; margin: 0 0 1.2mm; display: flex; align-items: baseline; gap: 2mm; }
+  .scn .card h4 .n { font-family: 'JetBrains Mono', monospace; font-size: 7pt; color: var(--rust); }
+  .scn .card p { font-size: 8.1pt; margin: 0 0 1.5mm; line-height: 1.42; }
+  .scn .card .pass { font-size: 7.8pt; border-top: 1px dashed rgba(32,37,26,.25); padding-top: 1.5mm; color: var(--ink-soft); }
+  .scn .card .pass b { color: var(--olive); font-family: 'JetBrains Mono', monospace; font-size: 6.6pt; letter-spacing: .1em; text-transform: uppercase; }
+  .scn .card .meta { display: flex; gap: 1.5mm; flex-wrap: wrap; margin-bottom: 1.5mm; }
+
+  /* architecture */
+  .layer { border-radius: 3mm; padding: 2.3mm 3.5mm; margin-bottom: 1.8mm; break-inside: avoid; }
+  .layer > b { display: block; font-family: 'JetBrains Mono', monospace; font-size: 6.6pt; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 1.5mm; }
+  .layer .mods { display: flex; flex-wrap: wrap; gap: 1.6mm; }
+  .layer .mods span { font-size: 7.3pt; padding: .8mm 2.2mm; border-radius: 1.5mm; background: rgba(255,255,255,.75); border: 1px solid rgba(32,37,26,.18); }
+  .layer .mods span b { font-family: 'JetBrains Mono', monospace; font-size: 7pt; margin-right: 1mm; color: var(--rust-deep); }
+  .l1 { background: var(--parch); } .l2 { background: var(--sage-soft); } .l3 { background: var(--sand); } .l4 { background: var(--olive); color: var(--parch); }
+  .l4 .mods span { background: rgba(239,231,205,.12); border-color: rgba(239,231,205,.3); color: var(--parch); } .l4 .mods span b { color: var(--brass); }
+  .arrow { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 6.3pt; letter-spacing: .14em; color: var(--ink-mute); margin: -.8mm 0 1mm; }
+
+  /* wireframes */
+  .wf { border: 1.5px solid var(--ink); border-radius: 3mm; overflow: hidden; background: #fff; break-inside: avoid; }
+  .wf .bar { background: var(--olive); color: var(--parch); font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 6.4pt; letter-spacing: .1em; padding: 1.6mm 3mm; display: flex; gap: 4mm; align-items: center; }
+  .wf .bar .dot { width: 2mm; height: 2mm; border-radius: 50%; background: var(--rust); }
+  .wf .bar .sp { margin-left: auto; color: var(--sage); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ COVER ═══════════════ -->
+<div class="cover">
+  <div class="grain"></div>
+  <div class="topbar">
+    <div><span>Project</span>SignalSafe</div>
+    <div><span>Domain</span>Kavach · Indian Railway ATP</div>
+    <div><span>Document</span>Design &amp; build specification</div>
+    <div><span>Version</span>0.1 · 08 Oct 2026</div>
+  </div>
+  <div class="badge">S</div>
+
+  <!-- ring + orbit dots framing a signal and track, after the Hudson Co. ornament -->
+  <svg class="art" viewBox="0 0 210 125" xmlns="http://www.w3.org/2000/svg">
+    <g fill="none" stroke="#c9a46a" stroke-width=".35">
+      <circle cx="105" cy="62" r="52"/>
+      <circle cx="47" cy="62" r="17" opacity=".7"/>
+      <circle cx="163" cy="62" r="17" opacity=".7"/>
+      <line x1="14" y1="62" x2="30" y2="62"/><line x1="180" y1="62" x2="196" y2="62"/>
+      <line x1="64" y1="62" x2="53" y2="62"/><line x1="146" y1="62" x2="157" y2="62"/>
+    </g>
+    <g fill="#c4552b"><circle cx="14" cy="62" r="1.1"/><circle cx="196" cy="62" r="1.1"/><circle cx="47" cy="62" r="2.6"/><circle cx="163" cy="62" r="2.6"/></g>
+    <g fill="#c9a46a"><circle cx="105" cy="10" r="1.1"/><circle cx="105" cy="114" r="1.1"/><circle cx="53" cy="62" r="1.1"/><circle cx="157" cy="62" r="1.1"/><circle cx="68.2" cy="25.2" r=".9"/><circle cx="141.8" cy="25.2" r=".9"/><circle cx="68.2" cy="98.8" r=".9"/><circle cx="141.8" cy="98.8" r=".9"/></g>
+    <defs><clipPath id="disc"><circle cx="105" cy="62" r="49"/></clipPath></defs>
+    <g clip-path="url(#disc)">
+      <rect x="50" y="10" width="110" height="110" fill="#46562b"/>
+      <!-- haze bands -->
+      <rect x="50" y="64" width="110" height="60" fill="#5d6f3a"/>
+      <rect x="50" y="76" width="110" height="50" fill="#33401f"/>
+      <!-- converging track -->
+      <polygon points="96,64 114,64 150,112 60,112" fill="#2a3419"/>
+      <g stroke="#c9a46a" stroke-width=".5" opacity=".75">
+        <line x1="98" y1="66" x2="112" y2="66"/><line x1="96.5" y1="69" x2="113.5" y2="69"/><line x1="94.5" y1="73" x2="115.5" y2="73"/>
+        <line x1="92" y1="78" x2="118" y2="78"/><line x1="88.5" y1="84.5" x2="121.5" y2="84.5"/><line x1="84" y1="93" x2="126" y2="93"/><line x1="78" y1="104" x2="132" y2="104"/>
+      </g>
+      <g stroke="#efe7cd" stroke-width=".8"><line x1="101" y1="64" x2="80" y2="112"/><line x1="109" y1="64" x2="130" y2="112"/></g>
+      <!-- RFID tags between rails -->
+      <g fill="#c4552b"><rect x="103.6" y="70.6" width="2.8" height="1.2"/><rect x="102.8" y="88" width="4.4" height="1.6"/></g>
+      <!-- signal mast -->
+      <line x1="128" y1="30" x2="128" y2="80" stroke="#efe7cd" stroke-width="1.2"/>
+      <rect x="123" y="26" width="10" height="27" rx="2.4" fill="#20251a" stroke="#efe7cd" stroke-width=".5"/>
+      <circle cx="128" cy="32" r="2.6" fill="#3d3a30"/><circle cx="128" cy="39.5" r="2.6" fill="#e3a826"/><circle cx="128" cy="47" r="2.6" fill="#3d3a30"/>
+      <circle cx="128" cy="39.5" r="5" fill="#e3a826" opacity=".18"/>
+      <!-- radio tower -->
+      <g stroke="#a6b59b" stroke-width=".45" fill="none"><line x1="72" y1="64" x2="76" y2="24"/><line x1="80" y1="64" x2="76" y2="24"/><line x1="73" y1="54" x2="79" y2="54"/><line x1="74" y1="44" x2="78" y2="44"/><line x1="75" y1="34" x2="77" y2="34"/>
+        <path d="M70 22 a8 8 0 0 1 12 0"/><path d="M67 19 a12 12 0 0 1 18 0"/></g>
+    </g>
+  </svg>
+
+  <h1>Signal<i>Safe</i></h1>
+  <p class="tagline">A browser-based digital twin of the Kavach Generic Test Bench: build a yard, run Onboard and Stationary Kavach through it, inject the faults the field throws at them, and get a clause-by-clause verdict on what the system did and why.</p>
+
+  <div class="paper">
+    <svg viewBox="0 0 210 7" preserveAspectRatio="none"><path d="M0 7 L0 3.2 L6 4.1 L11 2.4 L17 3.6 L24 1.8 L29 3.9 L36 2.6 L42 4.3 L48 2.1 L55 3.4 L61 1.6 L68 3.8 L74 2.5 L81 4.2 L87 2.2 L93 3.5 L100 1.9 L107 3.7 L113 2.3 L120 4 L126 2 L133 3.3 L139 1.7 L146 3.9 L152 2.6 L159 4.1 L165 2.2 L172 3.6 L178 1.8 L185 3.7 L191 2.4 L198 4 L204 2.3 L210 3.4 L210 7 Z" fill="#efe7cd"/></svg>
+  </div>
+  <div class="stamp">DOCUMENTATION FIRST · PRE-BUILD</div>
+  <div class="meta">
+    <div><span>Grounded in</span><b>Kavach SRS v4.0 Amdt-3</b><small>RDSO/SPN/196/2020 · eff. 07.06.2024</small></div>
+    <div><span>Modelled on</span><b>Draft FRS, Generic Test Bench</b><small>RDSO/GTB Kavach/FRS/2026 · Jul 2026</small></div>
+    <div><span>Status</span><b>Design draft</b><small>Build starts after sign-off</small></div>
+  </div>
+</div>
+
+<!-- ═══════════════ CONTENTS ═══════════════ -->
+<section>
+  <div class="eyebrow">Contents</div>
+  <h2>What's <i>inside</i></h2>
+  <ol class="toc">
+    <li><span>01</span> Project overview <em>the problem, the idea, who it's for</em></li>
+    <li><span>02</span> Kavach on one page <em>the system SignalSafe simulates</em></li>
+    <li><span>03</span> What we'll build <em>every module, mapped to the RDSO test bench</em></li>
+    <li><span>04</span> The scenario library <em>twelve clause-grounded test scenarios</em></li>
+    <li><span>05</span> Faults &amp; evaluation <em>what we can break, and how we judge it</em></li>
+    <li><span>06</span> Screens we'll design <em>wireframes of the four main views</em></li>
+    <li><span>07</span> Tech stack <em>frontend, engine, data, reports</em></li>
+    <li><span>08</span> Architecture <em>layers, timing, data model</em></li>
+    <li><span>09</span> Engineering principles <em>determinism, fail-safety, honesty</em></li>
+    <li><span>10</span> Build plan <em>eight weeks, milestone by milestone</em></li>
+    <li><span>11</span> Future features <em>what could come after v1</em></li>
+    <li><span>A</span> Appendix: glossary, traceability, design language</li>
+  </ol>
+
+  <div class="stat" style="margin-top: 7mm">
+    <div><b>14</b><span>bench modules</span></div>
+    <div><b>12</b><span>seed scenarios</span></div>
+    <div><b>29</b><span>injectable faults</span></div>
+    <div><b>2 s</b><span>radio frame cycle</span></div>
+  </div>
+
+  <div class="box sage">
+    <h3>How to read this document</h3>
+    <p style="margin:0">This is written <b>before any code</b>, so it is a specification and plan, not a report. Clause numbers in rust (for example <span class="ref">SRS 20.1.2</span> or <span class="ref">FRS 7.6.7</span>) point to the two RDSO documents listed in the appendix; every number SignalSafe enforces is traced to one of them. Items tagged <span class="tag mvp">MVP</span> are committed for v1. <span class="tag v2">v2</span> and <span class="tag later">Later</span> items are planned but not promised.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ 01 OVERVIEW ═══════════════ -->
+<section>
+  <div class="eyebrow">01 · Project overview</div>
+  <h2>A Kavach test lab that <i>fits in a browser tab</i></h2>
+  <p class="lead">SignalSafe is a software twin of the reference test facility RDSO describes for Kavach. A user lays out a station yard, places signals, points, RFID tags and radio towers, runs simulated locos through it, and injects faults: radio loss, a missed tag, a GPS failure, a signal flickering on the approach. SignalSafe then checks each response against the SRS and explains the chain of events.</p>
+
+  <div class="grid2 grid-gap">
+    <div class="box rust">
+      <h3>The problem</h3>
+      <ul>
+        <li>Kavach function testing needs a physical bench: real SVK and OVK racks, relay adapters for field inputs, radio and brake simulators. Few people outside OEMs and RDSO ever get to use one.</li>
+        <li>RDSO's July 2026 draft FRS asks for a generic test bench but notes that OEMs don't share common simulator or adapter interfaces, and that <i>"further study is required"</i> <span class="ref">FRS 7.6.1.18</span>.</li>
+        <li>The SRS is dense: timeouts, fallback modes and brake rules are spread across 34 sections. Students and new engineers find it hard to see how they combine in a real incident.</li>
+      </ul>
+    </div>
+    <div class="box sage">
+      <h3>Our answer</h3>
+      <ul>
+        <li>A <b>browser-based bench</b> with the same module breakdown as the FRS: Scenario Editor, Bench Controller, Yard, Loco, Radio, DMI and SMOCIP simulators, Scenario Logger and Evaluation Tool.</li>
+        <li><b>Reference models</b> of Onboard and Stationary Kavach, written from the SRS, that stand in for the equipment under test.</li>
+        <li>A <b>generic adapter contract</b>, so the same scenarios could one day drive real equipment over serial or Ethernet.</li>
+        <li>An <b>evaluation report</b> that cites the clause behind each pass or fail.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Who it's for</h3>
+  <p><b>Students and educators</b> in railway signalling and safety-critical systems, who need to see Kavach logic run rather than only read it. <b>Test engineers</b> drafting scenario sequences, which the FRS places in the bench's scope <span class="ref">FRS 6.1.1.6</span>. They can prototype and review these sequences before booking time on a hardware bench. <b>Reviewers</b> comparing OEM behaviour against a neutral reading of the SRS.</p>
+
+  <h3>A test engineer's journey</h3>
+  <div class="flow">
+    <div><b>1 · Build yard</b>Tracks, points, signals, TINs, RFID tags, LC gates, towers.</div>
+    <div><b>2 · Write scenario</b>Trains, configs, route timeline, faults, expected observables.</div>
+    <div><b>3 · Pre-set</b>Load config into reference SVK/OVK, power on, register.</div>
+    <div><b>4 · Run</b>Watch live: yard, DMI, SMOCIP, radio log. Step, pause, speed up.</div>
+    <div><b>5 · Evaluate</b>Observables matched in time and location windows.</div>
+    <div><b>6 · Report</b>Pass/fail per clause, causal chain, exportable PDF.</div>
+  </div>
+  <p class="small" style="margin-top:-3mm">Steps 3–5 follow the simulation phases in <span class="ref">FRS 8.2.2</span>: preparation, start and sync, initial communication, scenario run, and simulation stop with event-logger download.</p>
+
+</section>
+
+<!-- ═══════════════ 02 KAVACH ═══════════════ -->
+<section>
+  <div class="eyebrow">02 · Kavach on one page</div>
+  <h2>The system we <i>simulate</i></h2>
+  <p class="lead" style="margin-bottom:3mm">Kavach is Indian Railways' Automatic Train Protection system. Stationary units at stations read signalling state and tell each train how far it may go. Onboard units supervise speed against that authority and brake if the loco pilot doesn't.</p>
+
+  <figure>
+    <svg viewBox="0 0 178 66" xmlns="http://www.w3.org/2000/svg" style="width:100%; display:block; background:#f9f5e7; border-radius:3mm">
+      <style>.lb{font:700 2.5px 'JetBrains Mono',monospace;fill:#4f5642;letter-spacing:.15px}.ttl{font:600 3.6px 'Bodoni Moda',serif;fill:#20251a}.sm{font:500 2.3px Manrope,sans-serif;fill:#4f5642}</style>
+      <!-- block labels -->
+      <text x="8" y="7" class="lb">STATION A · SVK-A</text><text x="76" y="7" class="lb">BLOCK SECTION · TIN 201</text><text x="138" y="7" class="lb">STATION B · SVK-B</text>
+      <!-- loop lines -->
+      <path d="M10 40 L22 40 L30 30 L56 30 L64 40" fill="none" stroke="#7b8f6c" stroke-width=".9"/>
+      <path d="M118 40 L126 30 L150 30 L158 40 L170 40" fill="none" stroke="#7b8f6c" stroke-width=".9"/>
+      <!-- main line -->
+      <line x1="4" y1="40" x2="174" y2="40" stroke="#20251a" stroke-width="1.1"/>
+      <!-- sleepers -->
+      <g stroke="#20251a" stroke-width=".25" opacity=".35"><line x1="70" y1="38.8" x2="70" y2="41.2"/><line x1="76" y1="38.8" x2="76" y2="41.2"/><line x1="82" y1="38.8" x2="82" y2="41.2"/><line x1="88" y1="38.8" x2="88" y2="41.2"/><line x1="94" y1="38.8" x2="94" y2="41.2"/><line x1="100" y1="38.8" x2="100" y2="41.2"/><line x1="106" y1="38.8" x2="106" y2="41.2"/><line x1="112" y1="38.8" x2="112" y2="41.2"/></g>
+      <!-- RFID tags (duplicated pairs) -->
+      <g fill="#c4552b"><rect x="34" y="39.3" width="1" height="1.4"/><rect x="35.6" y="39.3" width="1" height="1.4"/><rect x="78" y="39.3" width="1" height="1.4"/><rect x="79.6" y="39.3" width="1" height="1.4"/><rect x="100" y="39.3" width="1" height="1.4"/><rect x="101.6" y="39.3" width="1" height="1.4"/><rect x="140" y="39.3" width="1" height="1.4"/><rect x="141.6" y="39.3" width="1" height="1.4"/></g>
+      <text x="22" y="45" class="sm">RFID tag pairs · ≤1000 m apart</text>
+      <!-- signals -->
+      <g><line x1="66" y1="40" x2="66" y2="33" stroke="#20251a" stroke-width=".4"/><circle cx="66" cy="32" r="1.4" fill="#3f8f4f"/><text x="62" y="29.5" class="lb">S4</text></g>
+      <g><line x1="114" y1="40" x2="114" y2="33" stroke="#20251a" stroke-width=".4"/><circle cx="114" cy="32" r="1.4" fill="#c8372d"/><text x="110.5" y="29.5" class="lb">S1</text></g>
+      <!-- towers -->
+      <g stroke="#46562b" stroke-width=".45" fill="none"><path d="M40 22 L42 12 L44 22 M40.7 18.5 h2.6"/><path d="M38.6 11 a4 4 0 0 1 6.8 0"/><path d="M144 22 L146 12 L148 22 M144.7 18.5 h2.6"/><path d="M142.6 11 a4 4 0 0 1 6.8 0"/></g>
+      <!-- SVK boxes -->
+      <rect x="6" y="13" width="26" height="9" rx="1.5" fill="#33401f"/><text x="9" y="18.6" class="lb" style="fill:#efe7cd">SVK-A · 2oo2</text>
+      <rect x="148" y="13" width="26" height="9" rx="1.5" fill="#33401f"/><text x="151" y="18.6" class="lb" style="fill:#efe7cd">SVK-B · 2oo2</text>
+      <line x1="32" y1="17.5" x2="148" y2="17.5" stroke="#c9a46a" stroke-width=".4" stroke-dasharray="1.2 1"/><text x="68" y="16" class="sm">SVK ↔ SVK handover (Annex P)</text>
+      <!-- train -->
+      <rect x="84" y="36.6" width="13" height="3" rx="1" fill="#c4552b"/><rect x="72" y="36.6" width="11" height="3" rx=".8" fill="#46562b"/>
+      <text x="72" y="44.6" class="lb">LOCO 37421 · OVK</text>
+      <!-- radio links -->
+      <path d="M42 22 Q 70 26 90 35" fill="none" stroke="#c4552b" stroke-width=".4" stroke-dasharray=".9 .8"/>
+      <path d="M146 22 Q 125 26 97 35" fill="none" stroke="#c4552b" stroke-width=".4" stroke-dasharray=".9 .8" opacity=".5"/>
+      <text x="55" y="21.4" class="sm">UHF · every 2 s</text>
+      <!-- MA bracket -->
+      <path d="M97 51 L97 53 L113.5 53 L113.5 51" fill="none" stroke="#c4552b" stroke-width=".5"/>
+      <text x="96" y="57" class="lb" style="fill:#9c3f1b">MOVEMENT AUTHORITY → EOA AT S1</text>
+      <!-- legend -->
+      <text x="6" y="63" class="sm">OVK reads tags → reports location every 2 s → SVK reads interlocking → returns aspect, MA, track profile → OVK builds brake curve, brakes if exceeded.</text>
+    </svg>
+    <figcaption>FIG. 1 · Two stations, one block section, one Kavach-fitted loco. SignalSafe's yard editor produces layouts like this.</figcaption>
+  </figure>
+
+  <div class="grid2" style="font-size:8.7pt">
+    <div>
+      <h3 style="margin-top:0">Trackside</h3>
+      <ul>
+        <li><b>RFID tags</b>, duplicated, on the sleepers. They carry absolute location and TIN, and correct odometry drift (5 m + 5% of distance since the last tag) <span class="ref">SRS 3.4.2.4</span>.</li>
+        <li><b>Stationary Kavach (SVK)</b>, a 2-out-of-2 vital computer. It reads interlocking inputs (signals, points, track circuits) and generates movement authority <span class="ref">SRS 3.4.4</span>.</li>
+        <li><b>SMOCIP</b>, the station master's panel with SoS button, health indication and fault codes <span class="ref">SRS 3.4.6</span>.</li>
+        <li><b>Remote Interface Units</b> bring remote signals in over OFC <span class="ref">SRS 3.4.7</span>.</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="margin-top:0">Onboard</h3>
+      <ul>
+        <li><b>Onboard Kavach (OVK)</b>, a 2-out-of-2 vital computer that supervises speed against MA and the brake curve <span class="ref">SRS 3.5.2</span>.</li>
+        <li><b>LP-OCIP (DMI)</b>, the driver display with speeds, target distance, mode and soft keys. SoS is sent by pressing SoS + Ack together <span class="ref">SRS 3.5.5</span>.</li>
+        <li><b>BIU</b>, which issues Normal, Full-Service and Emergency brake commands and cuts traction <span class="ref">SRS 3.5.6</span>.</li>
+        <li><b>Two RFID readers, two radios, two pulse generators</b>, all in hot standby.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Operating modes SignalSafe models</h3>
+  <p class="small" style="margin-bottom:2mm">Mode names as used in the SRS and FRS. The full transition table is in Annexure A1, which is not in the documents we have. Section 09 explains how we handle that gap.</p>
+<div class="modes"><div><b>Full Supervision (FS)</b>Full MA, signal aspect and track profile known. OVK supervises against the full brake curve.</div><div><b>On Sight (OS) · Limited Supervision (LS)</b>Reduced authority. The loco pilot acknowledges the transition with Common/Ack <span class="ref">SRS 3.5.5.7</span>.</div><div><b>Staff Responsible (SR)</b>The degraded fallback, e.g. after GPS time-out <span class="ref">SRS 20.3.5</span> or loss of the TSRMS, adjacent-SVK or EI link <span class="ref">SRS 20.8</span>.</div><div><b>Trip · Post Trip · Override</b>Entered after passing an EOA. Post-Trip and Override are selected on the DMI <span class="ref">FRS 7.6.1.12</span>.</div><div><b>Standby · Isolation · Non-Leading</b>Not supervising, BIU isolated, or trailing loco. No LC auto-whistle in these modes <span class="ref">SRS 15.7</span>.</div><div><b>System Failure (SF)</b>Safe state after a vital failure: both RFID readers, PG mismatch, active DMI, brake feedback, or GPS + RTC <span class="ref">SRS 20.2–20.6</span>.</div></div>
+</section>
+
+<!-- ═══════════════ 03 WHAT WE'LL BUILD ═══════════════ -->
+<section>
+  <div class="eyebrow">03 · What we'll build</div>
+  <h2>Every module of the <i>RDSO bench</i>, in software</h2>
+  <p class="lead">The draft FRS splits the Generic Test Bench into the equipment under test, a test adaptor layer, and fourteen bench modules (Figures 1–3, section 7.6). SignalSafe keeps that split exactly, so anyone who knows the FRS can find their way around. The table shows each module and where we stand.</p>
+
+  <table>
+    <thead><tr><th style="width:21%">FRS module</th><th>What it does in SignalSafe</th><th style="width:13%">FRS ref</th><th style="width:9%">Plan</th></tr></thead>
+    <tbody>
+      <tr><td><b>Test Scenario Editor</b> (TSE)</td><td>Create, edit, delete and save scenarios. A database of test cases that combine into sequences. Correctness checks flag a signal with no foot tag, a tag gap over 1000 m, or a route not in the control table.</td><td class="num">7.6.2</td><td><span class="tag mvp">MVP</span></td></tr>
+      <tr><td><b>Test Bench Controller</b> (TBC)</td><td>Pick a scenario, start or stop it, power SVK/OVK up or down, inject System Failure. Live panel shows yard state, speed, location, last tag, DMI, SMOCIP and radio traffic.</td><td class="num">7.6.3</td><td><span class="tag mvp">MVP</span></td></tr>
+      <tr><td><b>Yard Simulator</b></td><td>Simulated interlocking: signal ECRs, point WKRs, track circuits, LC gates, line-clear. Drives SVK field inputs and can flicker or fail any input.</td><td class="num">7.6.13</td><td><span class="tag mvp">MVP</span></td></tr>
+      <tr><td><b>Speed Simulator</b> (SS)</td><td>Train dynamics: traction, gradient, brake response to BIU commands. Feeds odometry and holds within 1% of theoretical speed <span class="ref">7.6.5.5</span>.</td><td class="num">7.6.5</td><td><span class="tag mvp">MVP</span></td></tr>
+      <tr><td><b>RFID Simulator</b> (RFID-S)</td><td>Fires tag reads from absolute location, with no accidental misses up to 200 km/h. Can drop one or both tags of a pair, or plant an unexpected tag.</td><td class="num">7.6.6</td><td><span class="tag mvp">MVP</span></td></tr>
+      <tr><td><b>Radio Message Simulator</b> (RMS)</td><td>Carries OVK↔SVK packets on the 2 s frame. Adds delay, packet loss, radio holes and connection loss at set locations. Emulates two radios per unit.</td><td class="num">7.6.7</td><td><span class="tag mvp">MVP</span></td></tr>
+      <tr><td><b>BIU Simulator</b> (BIU-S)</td><td>Receives NSB, FSB, EB and traction cut-off. Returns brake-pipe and brake-cylinder pressure. Can fail pressure feedback.</td><td class="num">7.6.4</td><td><span class="tag mvp">MVP</span></td></tr>
+      <tr><td><b>DMI Simulator</b> (DIS)</td><td>An on-screen LP-OCIP: speeds, target distance, MA, aspect, mode, soft keys, SoS / Ack / Cancel. Can play the scenario's inputs automatically, with no operator.</td><td class="num">7.6.8</td><td><span class="tag mvp">MVP</span></td></tr>
+      <tr><td><b>SMOCIP Simulator</b></td><td>Station master panel: SoS button, health LED, 7-segment fault codes.</td><td class="num">7.6.12</td><td><span class="tag mvp">MVP</span></td></tr>
+      <tr><td><b>Test Scenario Logger</b> (TSL)</td><td>The bench's single source of truth. Every module message is logged with sim time and location, alongside both units' event loggers.</td><td class="num">7.6.11</td><td><span class="tag mvp">MVP</span></td></tr>
+      <tr><td><b>Test Evaluation Tool</b> (TET)</td><td>Offline matcher: finds each expected observable in its time and location window, avoids double matches, and builds the causal chain.</td><td class="num">7.6.15</td><td><span class="tag mvp">MVP</span></td></tr>
+      <tr><td><b>GPS Simulator</b> (GPSS)</td><td>Time source for both units. Fails GPS1, GPS2, PPS or RTC independently, following the SRS GPS truth table.</td><td class="num">7.6.9</td><td><span class="tag v2">v2</span></td></tr>
+      <tr><td><b>Power Analyzer</b> (PA)</td><td>Switches any module of SVK or OVK on or off and injects supply faults.</td><td class="num">7.6.10</td><td><span class="tag v2">v2</span></td></tr>
+      <tr><td><b>Track Profile Simulator</b> (TPS)</td><td>Edits PSR, TSR, gradient and LC data inside the SVK's application logic during a run. The FRS notes its requirements are still to be explored <span class="ref">7.6.14.3</span>.</td><td class="num">7.6.14</td><td><span class="tag v2">v2</span></td></tr>
+    </tbody>
+  </table>
+
+  <div class="grid2">
+    <div class="box parch">
+      <h3>Beyond the FRS</h3>
+      <ul>
+        <li><b>Adjacent SVK simulator</b>: up to six neighbours for handover tests <span class="ref">FRS 7.4.9.3</span>. <span class="tag v2">v2</span></li>
+        <li><b>Causal "why" view</b>: every log event records the event that caused it, so a failed observable can be traced back to the injected fault. <span class="tag mvp">MVP</span></li>
+        <li><b>Replay</b>: any run can be replayed exactly from its seed and inputs. <span class="tag mvp">MVP</span></li>
+      </ul>
+    </div>
+    <div class="box parch">
+      <h3>Explicitly out of scope</h3>
+      <ul>
+        <li>Card-level hardware testing, which is also outside the FRS's scope <span class="ref">FRS 5.1.1.5</span>.</li>
+        <li>Key-management cryptography. The SIM-based KMS isn't connected to the bench <span class="ref">FRS 7.3.10</span>. We simulate session setup but not real keys.</li>
+        <li>Certification. SignalSafe is a learning and pre-validation tool, not an approved facility.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Before every run: the pre-set</h3>
+  <p>The FRS requires the equipment under test to be loaded and configured before a scenario starts <span class="ref">FRS 8.1</span>. SignalSafe's Bench Controller does this as an explicit, logged step so nothing is assumed:</p>
+  <div class="flow">
+    <div><b>Software</b>Reference-model version pinned in the run record.</div>
+    <div><b>Station config</b>Yard, control table, track and gradient profile into REF-SVK.</div>
+    <div><b>Train config</b>Loco type, consist, brake parameters, Kavach parameters into REF-OVK.</div>
+    <div><b>Links</b>RIUs and adjacent SVKs declared and known to the bench.</div>
+    <div><b>Power-up</b>Units powered via the power adaptor, then the scenario clock starts.</div>
+  </div>
+
+  <h3>Anatomy of a scenario</h3>
+  <div class="grid2">
+    <div class="box sage">
+      <p style="margin-bottom:2mm">A scenario is the bench's basic unit <span class="ref">FRS 8.2.1</span>. Each SignalSafe scenario holds the four parts the FRS lists, plus two of our own:</p>
+      <ul style="margin:0">
+        <li><b>Test sequence</b>: signalling inputs, timing, configuration.</li>
+        <li><b>Track description</b>: conditions and gradient profile.</li>
+        <li><b>Train description</b>: formation, loco type, rolling stock.</li>
+        <li><b>Simulation details</b>: which modules run, with what options.</li>
+        <li><b>Faults</b> and <b>expected observables</b> (SignalSafe additions).</li>
+      </ul>
+    </div>
+    <div class="box parch">
+      <p style="margin-bottom:2mm">The FRS puts <b>combining test cases into sequences</b> inside the bench's scope <span class="ref">FRS 6.1.1.6</span>. The TSE supports this directly:</p>
+      <ul style="margin:0">
+        <li>Scenarios can be <b>chained</b>: the end state of one (train position, mode, registration) becomes the start of the next.</li>
+        <li>A <b>sequence</b> such as "enter territory → register → SPAD approach → radio loss → recovery" runs as one continuous simulation with one combined report.</li>
+        <li>The live checks run across the whole sequence, not just each part.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 04 SCENARIOS ═══════════════ -->
+<section>
+  <div class="eyebrow">04 · The scenario library</div>
+  <h2>Twelve scenarios, <i>each tied to a clause</i></h2>
+  <p class="lead">RDSO's official test cases (SIF 0533 v4.22) aren't in the documents we have. So the v1 library is our own: twelve scenarios written directly from SRS clauses, each with a setup, a trigger, and pass criteria the Evaluation Tool can check automatically.</p>
+
+  <div class="scn">
+    <div class="card"><h4><span class="n">S01</span> Stop short of a red</h4>
+      <div class="meta"><span class="tag sil4">SIL-4</span><span class="ref">SRS 12 · 3.5.7.1</span></div>
+      <p>Loco approaches home signal S1 at ON. The loco pilot (DMI auto-player) keeps notching up.</p>
+      <p class="pass"><b>Pass</b> OVK brakes on the curve and stops short of S1: within 5 m in ≥90% of 200 seeded runs, within 30 m in ≥98%.</p></div>
+    <div class="card"><h4><span class="n">S02</span> Conflicting route inputs</h4>
+      <div class="meta"><span class="tag sil4">SIL-4</span><span class="ref">SRS 12.1</span></div>
+      <p>The yard shows S4 OFF while the point for that route is not detected.</p>
+      <p class="pass"><b>Pass</b> SVK sends the most restrictive aspect for S4 and shortens the MA. No FS MA past S4.</p></div>
+    <div class="card"><h4><span class="n">S03</span> Head-on in block section</h4>
+      <div class="meta"><span class="tag nosil">Non-SIL</span><span class="ref">SRS 14.2 · 14.7</span></div>
+      <p>Two locos on TIN 201, approaching each other, both registered with SVK-A.</p>
+      <p class="pass"><b>Pass</b> SVK issues loco-specific SoS to both. Both brake immediately. Brakes release at 0 km/h <span class="ref">14.4</span>.</p></div>
+    <div class="card"><h4><span class="n">S04</span> Rear-end following</h4>
+      <div class="meta"><span class="tag nosil">Non-SIL</span><span class="ref">SRS 14.3</span></div>
+      <p>A faster loco closes on a slower one, same TIN, same direction.</p>
+      <p class="pass"><b>Pass</b> Only the rear loco brakes and stops ≥300 m behind. The front loco never brakes and its DMI never shows the alert.</p></div>
+    <div class="card"><h4><span class="n">S05</span> Radio goes silent</h4>
+      <div class="meta"><span class="tag sil4">SIL-4</span><span class="ref">SRS 20.1 · 5.1</span></div>
+      <p>RMS drops all SVK→OVK packets from t = 40 s in an Absolute Block Section.</p>
+      <p class="pass"><b>Pass</b> At 6 s the aspect blanks but FS continues. At 30 s radio failure is declared and the pilot is asked to acknowledge. With no Ack within 15 s, FSB is applied.</p></div>
+    <div class="card"><h4><span class="n">S06</span> One radio dies</h4>
+      <div class="meta"><span class="tag nosil">Availability</span><span class="ref">SRS 20.1.4</span></div>
+      <p>Radio 1 of the OVK fails in mid-section. Radio 2 stays healthy.</p>
+      <p class="pass"><b>Pass</b> The fault is logged and an NMS message is queued. Supervision continues normally, with no mode change and no brakes.</p></div>
+    <div class="card"><h4><span class="n">S07</span> Missing tags vs. a wrong tag</h4>
+      <div class="meta"><span class="tag sil4">SIL-4</span><span class="ref">SRS 3.5.4.6 · 19.6</span></div>
+      <p>Run A: both tags of an expected pair are dropped. Run B: an unlinked tag is planted on the route.</p>
+      <p class="pass"><b>Pass</b> A: "tag missing" shown on the DMI after the L_doubt window, with no brakes. B: brakes on reading the unexpected tag.</p></div>
+    <div class="card"><h4><span class="n">S08</span> Roll back on a gradient</h4>
+      <div class="meta"><span class="tag nosil">Non-SIL</span><span class="ref">SRS 13.1</span></div>
+      <p>Loco stopped on a rising gradient with brakes released. It rolls opposite to the cab direction.</p>
+      <p class="pass"><b>Pass</b> Brake and audio-visual warning once roll-back exceeds 5 m. The intervention is shown on the DMI.</p></div>
+    <div class="card"><h4><span class="n">S09</span> Pulse-generator mismatch</h4>
+      <div class="meta"><span class="tag sil4">SIL-4</span><span class="ref">SRS 20.5 · 6.5</span></div>
+      <p>PG-2 under-reads so the two PG speeds differ by more than 5 km/h for a full frame cycle.</p>
+      <p class="pass"><b>Pass</b> OVK goes to System Failure, logs the fault and queues an NMS alert.</p></div>
+    <div class="card"><h4><span class="n">S10</span> Signal flicker on approach</h4>
+      <div class="meta"><span class="tag sil4">SIL-4</span><span class="ref">SRS 18.8 · 5.2</span></div>
+      <p>S4's ECR input chatters OFF→ON→OFF within 1 s while the train is 1.2 km out.</p>
+      <p class="pass"><b>Pass</b> SVK holds the MA for 2–5 s (configured value) and never sends an MA longer than the most restrictive state seen.</p></div>
+    <div class="card"><h4><span class="n">S11</span> LC gate auto-whistle</h4>
+      <div class="meta"><span class="tag nosil">Non-SIL</span><span class="ref">SRS 15.3–15.9</span></div>
+      <p>Approach to LC 42-A, in three variants: normal, MA ending short of the gate, and stopped at 400 m.</p>
+      <p class="pass"><b>Pass</b> Normal: continuous horn from 600 m to the gate. No horn when the MA is short of the gate or the train is at standstill. Ack alone cancels it.</p></div>
+    <div class="card"><h4><span class="n">S12</span> Odometry jump</h4>
+      <div class="meta"><span class="tag nosil">Non-SIL</span><span class="ref">SRS 20.7</span></div>
+      <p>The OVK's reported distance jumps 150 m between two position reports, inconsistent with its live speed.</p>
+      <p class="pass"><b>Pass</b> SVK detects the error beyond its 120 m default tolerance and sends a loco-specific SoS.</p></div>
+  </div>
+  <p class="small" style="margin-top:3mm">The SIL levels shown are those the SRS assigns to the function under test. They describe the real system, not SignalSafe. Thresholds marked "configurable" in the SRS are scenario parameters in SignalSafe, with the SRS default pre-filled.</p>
+</section>
+
+<!-- ═══════════════ 05 FAULTS & EVALUATION ═══════════════ -->
+<section>
+  <div class="eyebrow">05 · Faults &amp; evaluation</div>
+  <h2>What we can break, and <i>how we judge it</i></h2>
+  <p class="lead">A fault is a scheduled change to one bench module, triggered by time, location or another event. SignalSafe never alters the reference models' logic to cause a fault. It only changes what they see through their interfaces, just as a hardware bench would.</p>
+
+  <table>
+    <thead><tr><th style="width:17%">Interface</th><th>Injectable faults</th><th style="width:30%">Expected reaction (SRS)</th></tr></thead>
+    <tbody>
+      <tr><td><b>Radio</b> (RMS)</td><td>Total loss, per-direction loss, % packet loss (seeded), added delay, radio hole over a stretch, one radio failed, replayed old frame</td><td>Aspect blank &gt;6 s, failure at 30 s ABS / 10 s auto <span class="ref">20.1</span>. Old frame numbers discarded <span class="ref">17.12</span>.</td></tr>
+      <tr><td><b>RFID</b> (RFID-S)</td><td>One tag of a pair missing, both missing, data mismatch in a pair, unexpected tag, one reader failed, both failed</td><td>Log or DMI only for misses. Brake on unexpected tag <span class="ref">19.6</span>. SF if both readers fail <span class="ref">20.2</span>.</td></tr>
+      <tr><td><b>Yard</b></td><td>Signal flicker, point not detected, track circuit stuck occupied, LSS OFF without line clear</td><td>MA held 2–5 s <span class="ref">18.8</span>. Most restrictive aspect <span class="ref">12.1</span>. Train-length abort after 3 min <span class="ref">8.1.6</span>.</td></tr>
+      <tr><td><b>Odometry</b> (SS)</td><td>PG channel disagreement, location jump, gradual drift</td><td>SF at &gt;5 km/h for a frame <span class="ref">20.5</span>. SVK SoS beyond 120 m <span class="ref">20.7</span>.</td></tr>
+      <tr><td><b>Brake</b> (BIU-S)</td><td>Pressure feedback lost, traction cut-off feedback lost</td><td>OVK to System Failure <span class="ref">20.6</span>.</td></tr>
+      <tr><td><b>DMI · Time · Links</b></td><td>Active DMI link lost, GPS1/GPS2/PPS/RTC failures, TSRMS or adjacent-SVK link lost</td><td>SF <span class="ref">20.4</span>. GPS truth table <span class="ref">20.3</span>. SR authorization <span class="ref">20.8</span>.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>How the Evaluation Tool decides</h3>
+  <div class="grid2 grid-gap">
+    <div>
+      <p>Following <span class="ref">FRS 7.6.15</span>, each scenario lists <b>expected observables</b>. An observable is an event type with filters plus a window in time, location, or both. After the run, the TET searches the combined log (TSL plus both units' event loggers) for each observable in order. A matched record is consumed, so the same brake event can't satisfy two steps. A step can depend on an earlier one, e.g. "within 15 s <i>after</i> the radio-failure prompt".</p>
+      <p>Results are <span class="tag" style="background:var(--sig-grn);color:#fff">Pass</span>, <span class="tag" style="background:var(--sig-red);color:#fff">Fail</span> (observable missing or outside its window) or <span class="tag" style="background:var(--sig-yel)">Unexpected</span> (a safety event that no step asked for, such as an EB nobody expected).</p>
+    </div>
+    <pre><span class="c">// S05 · expected observables (excerpt)</span>
+expect: [
+  { <span class="k">id</span>: <span class="s">'blank'</span>, event: <span class="s">'DMI_ASPECT_BLANK'</span>,
+    train: <span class="s">'L1'</span>, at: { after: <span class="s">'fault:radio'</span>, sec: [6, 8] } },
+  { <span class="k">id</span>: <span class="s">'fsStill'</span>, event: <span class="s">'MODE'</span>, mode: <span class="s">'FS'</span>,
+    at: { after: <span class="s">'blank'</span>, sec: [0, 1] } },
+  { <span class="k">id</span>: <span class="s">'rfail'</span>, event: <span class="s">'RADIO_FAILURE'</span>,
+    at: { after: <span class="s">'fault:radio'</span>, sec: [30, 32] } },
+  { <span class="k">id</span>: <span class="s">'fsb'</span>, event: <span class="s">'BRAKE_CMD'</span>, level: <span class="s">'FSB'</span>,
+    at: { after: <span class="s">'rfail'</span>, sec: [15, 17] } }
+]</pre>
+  </div>
+
+  <h3>The causal chain</h3>
+  <p>Every event the reference models emit carries a <code>causedBy</code> list naming the inputs or earlier events that triggered it. The report turns this into a readable chain. It is built directly from the log, not generated by AI, so it is exact and reproducible:</p>
+  <div class="flow">
+    <div><b>t 40.0 s · fault</b>RMS drops SVK→OVK packets</div>
+    <div><b>t 46.0 s · 20.1.2</b>6 s silent → aspect blank, FS kept</div>
+    <div><b>t 70.0 s · 20.1.1</b>30 s with no packet → radio failure</div>
+    <div><b>t 70.0 s · 20.1.3</b>Degraded mode, Ack requested</div>
+    <div><b>t 85.0 s · 20.1.3</b>No Ack in 15 s → FSB applied</div>
+  </div>
+</section>
+
+<!-- ═══════════════ 06 SCREENS ═══════════════ -->
+<section>
+  <div class="eyebrow">06 · Screens we'll design</div>
+  <h2>Four views, <i>one workbench</i></h2>
+  <p class="lead">Wireframes of the main screens, drawn before the build so layout decisions are made on paper first. The final UI follows the Signal Box identity: parchment panels, olive chrome and rust alerts.</p>
+
+  <!-- Bench controller -->
+  <figure>
+    <div class="wf">
+      <div class="bar"><span class="dot"></span>TEST BENCH CONTROLLER · S05 RADIO GOES SILENT<span class="sp">▶ RUNNING · ×4 · t 46.0 s · SEED 7731</span></div>
+      <svg viewBox="0 0 178 74" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%">
+        <style>.w{font:700 2.3px 'JetBrains Mono',monospace;fill:#4f5642}.wt{font:600 3px 'Bodoni Moda',serif;fill:#20251a}.ws{font:500 2.2px Manrope,sans-serif;fill:#4f5642}</style>
+        <rect x="0" y="0" width="178" height="74" fill="#f9f5e7"/>
+        <!-- yard pane -->
+        <rect x="3" y="3" width="118" height="40" rx="1.5" fill="#fff" stroke="#d9cda8" stroke-width=".4"/>
+        <text x="6" y="7.5" class="w">YARD · LIVE</text>
+        <path d="M8 26 L20 26 L26 18 L44 18 L50 26" fill="none" stroke="#a6b59b" stroke-width=".8"/>
+        <line x1="6" y1="26" x2="118" y2="26" stroke="#20251a" stroke-width=".9"/>
+        <rect x="60" y="23.6" width="10" height="2.4" rx=".6" fill="#c4552b"/><text x="58" y="21.8" class="w">L1 · 78 km/h</text>
+        <circle cx="96" cy="19" r="1.3" fill="#c8372d"/><line x1="96" y1="20.3" x2="96" y2="26" stroke="#20251a" stroke-width=".3"/><text x="93.5" y="16.5" class="w">S1</text>
+        <rect x="74" y="27.6" width="22" height="2" fill="#20251a" opacity=".08"/><text x="76" y="32.5" class="ws">MA → 1,240 m</text>
+        <rect x="30" y="34" width="30" height="5" rx="1" fill="#f4d7c7"/><text x="32" y="37.4" class="w" style="fill:#9c3f1b">⚡ RADIO LOSS ACTIVE</text>
+        <!-- DMI mini -->
+        <rect x="124" y="3" width="51" height="40" rx="1.5" fill="#20251a"/>
+        <text x="127" y="7.5" class="w" style="fill:#a6b59b">DMI · L1</text>
+        <circle cx="140" cy="24" r="10" fill="none" stroke="#5d6f3a" stroke-width="1.6"/>
+        <path d="M131.5 29 A10 10 0 0 1 146 15.5" fill="none" stroke="#e3a826" stroke-width="1.6"/>
+        <text x="135.4" y="25.6" class="wt" style="fill:#efe7cd">78</text>
+        <rect x="155" y="12" width="17" height="6" rx="1" fill="#33401f"/><text x="157" y="15.8" class="w" style="fill:#efe7cd">MODE FS</text>
+        <rect x="155" y="20" width="17" height="6" rx="1" fill="#3d3a30"/><text x="156.4" y="23.8" class="w" style="fill:#858b74">ASPECT —</text>
+        <text x="127" y="40" class="w" style="fill:#efe7cd">TGT 1,240 m</text>
+        <!-- radio log -->
+        <rect x="3" y="46" width="70" height="25" rx="1.5" fill="#fff" stroke="#d9cda8" stroke-width=".4"/>
+        <text x="6" y="50.5" class="w">RADIO · RMS</text>
+        <text x="6" y="55" class="ws">38.0  SVK→L1  REG  fr 19  ✓</text>
+        <text x="6" y="58.5" class="ws">40.0  SVK→L1  REG  fr 20  ✕ dropped</text>
+        <text x="6" y="62" class="ws">42.0  SVK→L1  REG  fr 21  ✕ dropped</text>
+        <text x="6" y="65.5" class="ws">44.0  L1→SVK  REG  fr 22  ✓</text>
+        <!-- events -->
+        <rect x="76" y="46" width="62" height="25" rx="1.5" fill="#fff" stroke="#d9cda8" stroke-width=".4"/>
+        <text x="79" y="50.5" class="w">EVENTS · TSL</text>
+        <text x="79" y="55" class="ws">40.0  fault:radio injected</text>
+        <text x="79" y="58.5" class="ws" style="fill:#9c3f1b">46.0  DMI aspect blank (20.1.2)</text>
+        <text x="79" y="62" class="ws">46.0  mode FS retained</text>
+        <!-- controls -->
+        <rect x="141" y="46" width="34" height="25" rx="1.5" fill="#33401f"/>
+        <text x="144" y="50.5" class="w" style="fill:#a6b59b">CONTROL</text>
+        <rect x="144" y="53" width="13" height="5" rx="1" fill="#c4552b"/><text x="145.6" y="56.3" class="w" style="fill:#fff">■ STOP</text>
+        <rect x="159" y="53" width="13" height="5" rx="1" fill="#efe7cd"/><text x="160.4" y="56.3" class="w">⏸ STEP</text>
+        <rect x="144" y="60" width="28" height="5" rx="1" fill="none" stroke="#c9a46a" stroke-width=".4"/><text x="145.5" y="63.3" class="w" style="fill:#efe7cd">+ INJECT FAULT</text>
+      </svg>
+    </div>
+    <figcaption>FIG. 2 · Bench Controller during a run: yard, mirrored DMI, radio and event streams, run controls <span class="ref">FRS 7.6.3.3–7.6.3.5</span>.</figcaption>
+  </figure>
+
+  <div class="grid2">
+    <figure>
+      <div class="wf">
+        <div class="bar"><span class="dot"></span>SCENARIO EDITOR</div>
+        <svg viewBox="0 0 86 52" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%">
+          <style>.w{font:700 2.1px 'JetBrains Mono',monospace;fill:#4f5642}.ws{font:500 2.1px Manrope,sans-serif;fill:#4f5642}</style>
+          <rect width="86" height="52" fill="#f9f5e7"/>
+          <rect x="2" y="2" width="12" height="48" rx="1" fill="#33401f"/>
+          <g fill="#efe7cd"><circle cx="8" cy="7" r="1.6"/><rect x="5.5" y="12" width="5" height="2" rx=".4"/><path d="M8 18 v4 M6.5 19 h3" stroke="#efe7cd" stroke-width=".5"/><rect x="6.5" y="26" width="3" height="1.4"/><circle cx="8" cy="33" r="1.2" fill="#c4552b"/></g>
+          <rect x="16" y="2" width="44" height="32" rx="1" fill="#fff" stroke="#d9cda8" stroke-width=".3"/>
+          <line x1="18" y1="20" x2="58" y2="20" stroke="#20251a" stroke-width=".7"/><path d="M22 20 L26 14 L40 14 L44 20" fill="none" stroke="#a6b59b" stroke-width=".6"/>
+          <circle cx="48" cy="15" r="1" fill="#c8372d"/><g fill="#c4552b"><rect x="30" y="19.4" width=".7" height="1.2"/><rect x="31.3" y="19.4" width=".7" height="1.2"/></g>
+          <rect x="38" y="24" width="18" height="6" rx=".8" fill="#f4d7c7"/><text x="39" y="27.6" class="w" style="fill:#9c3f1b">⚠ gap 1,140 m</text>
+          <rect x="16" y="36" width="44" height="14" rx="1" fill="#fff" stroke="#d9cda8" stroke-width=".3"/>
+          <text x="18" y="40" class="w">TIMELINE</text><line x1="18" y1="45" x2="58" y2="45" stroke="#d9cda8" stroke-width=".4"/>
+          <circle cx="24" cy="45" r="1" fill="#33401f"/><circle cx="36" cy="45" r="1" fill="#c4552b"/><circle cx="50" cy="45" r="1" fill="#e3a826"/>
+          <rect x="62" y="2" width="22" height="48" rx="1" fill="#fff" stroke="#d9cda8" stroke-width=".3"/>
+          <text x="64" y="6" class="w">SIGNAL S1</text><text x="64" y="10" class="ws">Type: Home</text><text x="64" y="13.5" class="ws">Foot tag: T-114</text><text x="64" y="17" class="ws">Ctrl table row 3</text>
+          <text x="64" y="23" class="w">EXPECT</text><text x="64" y="27" class="ws">BRAKE_CMD FSB</text><text x="64" y="30.5" class="ws">stop ≤ 30 m of S1</text>
+        </svg>
+      </div>
+      <figcaption>FIG. 3 · Scenario Editor: palette, yard canvas with live checks, timeline, inspector <span class="ref">FRS 7.6.2</span>.</figcaption>
+    </figure>
+    <figure>
+      <div class="wf">
+        <div class="bar"><span class="dot"></span>EVALUATION REPORT · S05</div>
+        <svg viewBox="0 0 86 52" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%">
+          <style>.w{font:700 2.1px 'JetBrains Mono',monospace;fill:#4f5642}.ws{font:500 2.2px Manrope,sans-serif;fill:#20251a}.wt{font:600 4.4px 'Bodoni Moda',serif;fill:#20251a}</style>
+          <rect width="86" height="52" fill="#f9f5e7"/>
+          <text x="4" y="8" class="wt">3 of 4 passed</text><text x="4" y="12" class="w">SEED 7731 · 212 s SIM · 1,904 EVENTS</text>
+          <g><rect x="4" y="15" width="78" height="6" rx="1" fill="#fff"/><circle cx="7" cy="18" r="1.2" fill="#3f8f4f"/><text x="10" y="18.8" class="ws">Aspect blank at 6.0 s</text><text x="68" y="18.8" class="w">20.1.2</text></g>
+          <g><rect x="4" y="22.5" width="78" height="6" rx="1" fill="#fff"/><circle cx="7" cy="25.5" r="1.2" fill="#3f8f4f"/><text x="10" y="26.3" class="ws">FS retained after blank</text><text x="68" y="26.3" class="w">20.1.2</text></g>
+          <g><rect x="4" y="30" width="78" height="6" rx="1" fill="#fff"/><circle cx="7" cy="33" r="1.2" fill="#3f8f4f"/><text x="10" y="33.8" class="ws">Radio failure at 30.0 s</text><text x="68" y="33.8" class="w">20.1.1</text></g>
+          <g><rect x="4" y="37.5" width="78" height="6" rx="1" fill="#f4d7c7"/><circle cx="7" cy="40.5" r="1.2" fill="#c8372d"/><text x="10" y="41.3" class="ws">FSB expected 15 s → seen 21.4 s</text><text x="68" y="41.3" class="w">20.1.3</text></g>
+          <text x="4" y="48.5" class="w" style="fill:#9c3f1b">▸ SHOW CAUSAL CHAIN   ▸ EXPORT PDF</text>
+        </svg>
+      </div>
+      <figcaption>FIG. 4 · Evaluation report with clause per step (shown with a deliberately broken reference model) <span class="ref">FRS 7.6.15</span>.</figcaption>
+    </figure>
+  </div>
+
+  <div class="box sage" style="margin-top:1mm">
+    <h3>The DMI simulator, in detail</h3>
+    <p style="margin:0">The DMI view follows the functions the SRS lists for the LP-OCIP <span class="ref">SRS 3.5.5.2</span>: current, permitted, target and section speed, overspeed, MA, target distance (to EOA, turnout, TSR/PSR, collision or SoS), signal aspect, mode, train length and configuration. Inputs: 12 soft keys, 4 navigation keys and the SoS, Common/Ack and Cancel buttons <span class="ref">3.5.5.3–3.5.5.4</span>. Health and SoS indicators are bi-colour green/red <span class="ref">3.5.5.8–3.5.5.10</span>. The exact screen layout is defined in Annexure B, which we don't have, so v1 uses our own layout with the same information and buttons.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ 07 TECH STACK ═══════════════ -->
+<section>
+  <div class="eyebrow">07 · Tech stack</div>
+  <h2>Browser-first, <i>engine-centred</i></h2>
+  <p class="lead">The simulation engine is the product, and the UI is a window onto it. So the engine is plain TypeScript with no UI dependencies, runs in a Web Worker, and is tested on its own. Everything runs client-side, so v1 deploys as a static site.</p>
+
+  <table>
+    <thead><tr><th style="width:18%">Layer</th><th style="width:30%">Choice</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><b>Language</b></td><td>TypeScript (strict)</td><td>Packet layouts, modes and events become types. Most protocol mistakes are caught at compile time.</td></tr>
+      <tr><td><b>Frontend</b></td><td>React 19 + Vite</td><td>Fast dev loop, and the same stack as our previous projects.</td></tr>
+      <tr><td><b>Yard rendering</b></td><td>SVG (editor) · Canvas 2D (live run)</td><td>SVG gives crisp, selectable elements for editing. Canvas keeps live runs smooth with many trains and fast-forward.</td></tr>
+      <tr><td><b>Engine</b></td><td>Pure TS in a Web Worker</td><td>Deterministic fixed-tick loop off the main thread. The UI receives state snapshots and log batches.</td></tr>
+      <tr><td><b>State</b></td><td>Zustand</td><td>Small and explicit. Engine snapshots replace whole slices, so there's no hidden mutation.</td></tr>
+      <tr><td><b>Validation</b></td><td>Zod schemas</td><td>Scenario files and adapter messages are validated at every boundary.</td></tr>
+      <tr><td><b>Storage</b></td><td>IndexedDB (Dexie) · JSON import/export</td><td>Scenario library and run logs stay in the browser. Scenarios are shareable as <code>.signalsafe.json</code> files.</td></tr>
+      <tr><td><b>Charts</b></td><td>Recharts</td><td>Speed and distance plots with the brake curve overlaid in reports.</td></tr>
+      <tr><td><b>Reports</b></td><td>Print-styled HTML → PDF</td><td>The same approach as this document, so reports match the house style.</td></tr>
+      <tr><td><b>Testing</b></td><td>Vitest · fast-check · Playwright</td><td>Unit tests per clause, property tests on safety invariants, end-to-end tests that run the twelve scenarios.</td></tr>
+      <tr><td><b>Hosting</b></td><td>Static (Vercel / GitHub Pages)</td><td>No server for v1. A backend arrives only with the shared library (section 11).</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box parch">
+    <h3>Why not a game engine or a backend simulation?</h3>
+    <p style="margin:0">Unity or Godot would give nicer 3D, but SignalSafe is about logic and timing, not looks, and a browser tab is the lowest barrier for students. Running the engine server-side would make runs depend on network latency. That's acceptable for a dashboard but wrong for a tool that checks 2-second frame timing. A worker on the user's machine keeps every run exact.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ 08 ARCHITECTURE ═══════════════ -->
+<section>
+  <div class="eyebrow">08 · Architecture</div>
+  <h2>Four layers, <i>straight from Figure 1</i></h2>
+  <p class="lead">The FRS reference architecture has a bench layer, a simulation layer, an adapter layer, and the equipment under test as a black box. SignalSafe keeps these four layers. The reference SVK and OVK models talk to the bench <b>only</b> through adapters, so they can later be swapped for real equipment.</p>
+
+  <div class="layer l1"><b>Bench layer · UI thread</b>
+    <div class="mods"><span><b>TSE</b>Scenario Editor</span><span><b>TBC</b>Bench Controller</span><span><b>DIS</b>DMI Simulator</span><span><b>SMOCIP-S</b>Station panel</span><span><b>TET</b>Evaluation Tool</span><span><b>RPT</b>Reports</span></div></div>
+  <div class="arrow">▼ commands · ▲ snapshots + log batches (postMessage)</div>
+  <div class="layer l2"><b>Simulation layer · worker</b>
+    <div class="mods"><span><b>YARD</b>Interlocking sim</span><span><b>SS</b>Speed / dynamics</span><span><b>RFID-S</b>Tag reads</span><span><b>RMS</b>Radio frames</span><span><b>BIU-S</b>Brakes</span><span><b>GPSS</b>Time</span><span><b>PA</b>Power</span><span><b>TPS</b>Track profile</span><span><b>FAULT</b>Fault scheduler</span><span><b>TSL</b>Logger</span></div></div>
+  <div class="arrow">▼▲ typed adapter messages only</div>
+  <div class="layer l3"><b>Adapter layer · the generic contract</b>
+    <div class="mods"><span><b>GPS-A</b></span><span><b>DMI-A</b></span><span><b>BIU-A</b></span><span><b>ODO-A</b></span><span><b>RCU-A</b></span><span><b>RFID-A</b></span><span><b>SMOCIP-A</b></span><span><b>SIM-A</b>Field inputs</span><span><b>TPS-A</b></span><span><b>EVL-A</b>Event logs</span><span><b>PWR-A</b></span></div></div>
+  <div class="arrow">▼▲ in-process today · serial / Ethernet bridge later</div>
+  <div class="layer l4"><b>Equipment under test</b>
+    <div class="mods"><span><b>REF-OVK</b>Onboard reference model</span><span><b>REF-SVK</b>Stationary reference model</span><span><b>REF-SVK×n</b>Adjacent stations</span><span><b>EXT</b>Real equipment via bridge (future)</span></div></div>
+
+  <h3>Timing model</h3>
+  <div class="grid2 grid-gap" style="font-size:8.7pt">
+    <div>
+      <ul>
+        <li><b>Fixed tick of 100 ms</b> simulated time. Dynamics, odometry and tag detection update every tick.</li>
+        <li><b>Radio frame of 2 s</b> = 20 ticks <span class="ref">SRS 17.11</span>. Each unit gets a slot in the frame. SVK and OVK packets carry frame numbers, and stale ones are discarded <span class="ref">17.12</span>.</li>
+        <li><b>Logging</b> every 2 s plus on events <span class="ref">SRS 21.2</span>, with time and location stamps.</li>
+        <li>Runs go <b>step-by-step, real time, or up to ×20</b>. Simulated time is independent of wall-clock time, so results never depend on machine speed.</li>
+      </ul>
+    </div>
+    <div class="box sage" style="margin:0">
+      <h3>Tag detection at speed</h3>
+      <p style="margin:0">At 200 km/h a train covers 5.6 m per 100 ms tick, more than the reader's ≤750 mm horizontal range <span class="ref">SRS 3.5.4.3</span>. So RFID-S doesn't sample position. Each tick it checks whether the antenna's path <i>crossed</i> a tag between the last position and this one. This gives no accidental misses at any speed, as <span class="ref">FRS 7.6.6.3</span> requires.</p>
+    </div>
+  </div>
+
+  <h3>Core data model</h3>
+  <pre><span class="k">Scenario</span>   { id, title, clauseRefs[], yard, trains[], timeline[], faults[], expect[], seed, params }
+<span class="k">Yard</span>       { tracks[], points[], signals[], tags[], lcGates[], tins[], towers[], controlTable[] }
+<span class="k">Train</span>      { locoId, config, brakeParams, lengthM, startTag, cabDirection, driver: <span class="s">'auto'</span> | <span class="s">'manual'</span> }
+<span class="k">Fault</span>      { kind, target, trigger: { atSec | atLocM | onEvent }, durationSec?, params }
+<span class="k">LogEvent</span>   { seq, tSim, frame, source, type, train?, locM?, data, causedBy: seq[] }
+<span class="k">Observable</span> { id, event, filters, at: { after?, sec?, locM? }, tolerance? }</pre>
+</section>
+
+<!-- ═══════════════ 09 PRINCIPLES ═══════════════ -->
+<section>
+  <div class="eyebrow">09 · Engineering principles</div>
+  <h2>Built the way a <i>safety tool</i> should be</h2>
+
+  <div class="grid2 grid-gap">
+    <div class="box">
+      <h3>1 · Deterministic, always</h3>
+      <p style="margin:0">Same scenario + same seed = the same log, byte for byte. All randomness (packet loss, tag jitter) comes from one seeded generator, and nothing reads the wall clock. A failing run can always be replayed and debugged.</p>
+    </div>
+    <div class="box">
+      <h3>2 · Most restrictive wins</h3>
+      <p style="margin:0">The reference models apply the SRS rule that, when several situations overlap, the most restrictive one governs <span class="ref">SRS 19.1–19.3</span>. When information stops, the last brake curve continues <span class="ref">19.4</span>. Unknown inputs default to the safe state.</p>
+    </div>
+    <div class="box">
+      <h3>3 · Invariants as tests</h3>
+      <p style="margin:0">Property tests generate thousands of random yards and fault mixes and assert invariants on every tick. Examples: an FS MA never extends past a signal at ON. The front train in a rear-end case never brakes. A brake command is never weakened while its cause still holds.</p>
+    </div>
+    <div class="box">
+      <h3>4 · One clause, one test</h3>
+      <p style="margin:0">Each SRS number SignalSafe enforces (6 s, 30 s, 15 s, 300 m, 5 m, 600 m, 5 km/h, 120 m…) lives in one config file with its clause reference and has at least one unit test. The appendix traceability table is generated from that file.</p>
+    </div>
+  </div>
+
+  <div class="box rust">
+    <h3>Honest limits</h3>
+    <ul style="margin:0">
+      <li><b>Not an approved test facility.</b> The FRS requires the real bench to be calibrated per Railway procedures <span class="ref">FRS 8.1.1.2</span>. SignalSafe has no such standing and its output is not evidence of compliance.</li>
+      <li><b>Reference models are our reading of the public SRS.</b> They are not any OEM's implementation and are not SIL-rated.</li>
+      <li><b>Several annexures aren't in our sources.</b> These are A1 (mode transitions), B (DMI layout), C (radio protocol and time slots), D (tag data format) and O (braking algorithm). In v1 those parts use simplified stand-ins, each labelled <span class="tag later">stand-in</span> in the UI and in reports, so nobody mistakes them for the specification.</li>
+      <li><b>The braking model is simplified</b>: constant deceleration per brake level with a gradient term, until Annexure O is available.</li>
+    </ul>
+  </div>
+
+  <h3>Performance targets</h3>
+  <table>
+    <thead><tr><th>Target</th><th style="width:22%">Budget</th><th>How we'll check</th></tr></thead>
+    <tbody>
+      <tr><td>Simulate a 10-minute, 4-train scenario</td><td class="num">&lt; 3 s at max speed</td><td>Benchmark in CI on the twelve scenarios</td></tr>
+      <tr><td>Live view frame rate at ×20</td><td class="num">≥ 50 fps</td><td>Playwright trace on a mid-range laptop</td></tr>
+      <tr><td>Speed simulator vs. theoretical</td><td class="num">≤ 1% deviation</td><td>Unit test against closed-form motion <span class="ref">FRS 7.6.5.5</span></td></tr>
+      <tr><td>Bench-added radio latency</td><td class="num">0 unless injected</td><td>Frame-cycle test stays within 2 s <span class="ref">FRS 7.5.3.3</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════ 10 BUILD PLAN ═══════════════ -->
+<section>
+  <div class="eyebrow">10 · Build plan</div>
+  <h2>Eight weeks, <i>milestone by milestone</i></h2>
+  <p class="lead">Engine first, UI second, polish last. Each week ends with something runnable. Dates assume a start on 12 Oct 2026.</p>
+
+  <div class="timeline">
+    <div class="t key"><span class="mono">WEEK 0 · 08–11 OCT</span><p><b>Documentation first.</b> This specification, scenario list and clause table, signed off before code.</p></div>
+    <div class="t"><span class="mono">WEEK 1 · 12–18 OCT</span><p><b>Engine skeleton.</b> Repo, TS project, fixed-tick loop, seeded RNG, event log with <code>causedBy</code>, yard graph model, Zod scenario schema.</p></div>
+    <div class="t"><span class="mono">WEEK 2 · 19–25 OCT</span><p><b>Train &amp; track.</b> Speed simulator with gradient and brake levels, swept-path RFID detection, linking with odometry correction, direction and TIN deduction <span class="ref">SRS 7, 16</span>.</p></div>
+    <div class="t"><span class="mono">WEEK 3 · 26 OCT–01 NOV</span><p><b>Reference SVK.</b> Interlocking inputs → aspect and MA, control-table route check, most-restrictive rule, MA hold on flicker, registration and deregistration.</p></div>
+    <div class="t key"><span class="mono">WEEK 4 · 02–08 NOV</span><p><b>Reference OVK + radio.</b> Brake curve, FS supervision, SPAD, rollback, head-on and rear-end, RMS frames and slots, radio failure fallback. <b>Milestone: S01–S05 pass headless.</b></p></div>
+    <div class="t"><span class="mono">WEEK 5 · 09–15 NOV</span><p><b>Workbench UI.</b> Scenario Editor on SVG with live checks. Bench Controller with Canvas yard, run controls and streams.</p></div>
+    <div class="t"><span class="mono">WEEK 6 · 16–22 NOV</span><p><b>Operator panels.</b> DMI simulator with auto-player, SMOCIP simulator, fault scheduler UI.</p></div>
+    <div class="t key"><span class="mono">WEEK 7 · 23–29 NOV</span><p><b>Evaluation.</b> TET matcher, causal chain view, speed-distance charts, PDF report. <b>Milestone: all twelve scenarios pass end-to-end.</b></p></div>
+    <div class="t"><span class="mono">WEEK 8 · 30 NOV–06 DEC</span><p><b>Polish &amp; ship.</b> Accessibility pass, onboarding tour, sample library, performance budget, deploy, and the post-build version of this documentation with real screenshots.</p></div>
+  </div>
+
+  <div class="box sage" style="margin-top:4mm">
+    <h3>Definition of done for v1</h3>
+    <ul style="margin:0">
+      <li>All twelve scenarios pass, and each fails in the expected way when its reference-model rule is deliberately broken (mutation check).</li>
+      <li>Every enforced number has a clause reference and a test. Every stand-in is labelled.</li>
+      <li>A newcomer can build a two-station yard and run S01 in under ten minutes without help.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════ 11 FUTURE ═══════════════ -->
+<section>
+  <div class="eyebrow">11 · Future features</div>
+  <h2>What could come <i>after v1</i></h2>
+
+  <div class="grid2">
+    <div>
+      <h3>Annexure-accurate models <span class="pri next">Next</span></h3>
+      <p>Replace the stand-ins with A1, C, D and O once those annexures are available. Packet-level radio framing per Annexure C would let SignalSafe produce byte-accurate packets.</p>
+      <h3>Hardware bridge <span class="pri res">Research</span></h3>
+      <p>A small Node or Rust service that maps the adapter contract to RS-232/485 and Ethernet, which most bench interfaces use <span class="ref">FRS 7.6.1.17</span>. The same scenarios could then drive real equipment. This needs OEM cooperation, as the FRS itself notes.</p>
+      <h3>SIF 0533 import <span class="pri next">Next</span></h3>
+      <p>If RDSO's official function test cases become available, import them into the TSE database as the FRS intends <span class="ref">FRS 7.6.2.2</span>, alongside our own twelve.</p>
+      <h3>Adjacent-station handover <span class="pri next">Next</span></h3>
+      <p>Full SVK-to-SVK soft handover per Annexure P, with up to six neighbours and shared border tags.</p>
+    </div>
+    <div>
+      <h3>Shared scenario library <span class="pri later">Later</span></h3>
+      <p>A small backend (Node + Postgres) for publishing scenarios and reports, with reviewer comments on individual observables.</p>
+      <h3>Classroom mode <span class="pri later">Later</span></h3>
+      <p>Instructors assign scenarios. Students predict the outcome before running ("will S05 brake, and when?"), then compare their prediction with the causal chain.</p>
+      <h3>Plain-language explainer <span class="pri later">Later</span></h3>
+      <p>An optional assistant that reads the causal chain and the cited clauses and answers questions like "why didn't the front train brake?". It is limited to the run log and the SRS text, and always shows its sources.</p>
+      <h3>NMS &amp; TSRMS views <span class="pri later">Later</span></h3>
+      <p>A Network Monitoring System panel showing the queued NMS messages already modelled, and a TSRMS simulator for issuing temporary speed restrictions during a run.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ APPENDIX ═══════════════ -->
+<section>
+  <div class="eyebrow">Appendix</div>
+  <h2>Glossary, sources &amp; <i>traceability</i></h2>
+
+  <h3 style="margin-top:0">Source documents</h3>
+  <table>
+    <thead><tr><th style="width:8%">Ref</th><th>Document</th><th style="width:28%">Number · status</th></tr></thead>
+    <tbody>
+      <tr><td class="num">SRS</td><td>System Requirements Specification of KAVACH (The Indian Railway ATP), Version 4.0, Amendment 3. RDSO, S&amp;T Directorate</td><td class="num">RDSO/SPN/196/2020 · eff. 07.06.2024</td></tr>
+      <tr><td class="num">FRS</td><td>Draft Functional Requirement Specification for KAVACH Generic Test Facility, Version 1.0. RDSO, S&amp;T Directorate</td><td class="num">RDSO/GTB Kavach/FRS/2026 · draft, Jul 2026</td></tr>
+      <tr><td class="num">SIF</td><td>Function Test Cases at System Level for KAVACH, Part I &amp; II (referenced by the FRS, not available to us)</td><td class="num">SIF 0533 v4.22</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Enforced values (traceability excerpt)</h3>
+  <table>
+    <thead><tr><th>Rule</th><th style="width:22%">Default</th><th style="width:14%">Clause</th><th style="width:14%">Scenario</th></tr></thead>
+    <tbody>
+      <tr><td>Radio frame cycle / location report interval</td><td class="num">2 s</td><td class="num">17.11 · 9.2</td><td class="num">all</td></tr>
+      <tr><td>Aspect blanked when last SVK packet older than</td><td class="num">6 s</td><td class="num">20.1.2</td><td class="num">S05</td></tr>
+      <tr><td>Radio failure declared (Absolute / Automatic block)</td><td class="num">30 s / 10 s</td><td class="num">20.1.1</td><td class="num">S05</td></tr>
+      <tr><td>Loco pilot acknowledgement window before brake</td><td class="num">15 s</td><td class="num">20.1.3</td><td class="num">S05</td></tr>
+      <tr><td>SVK holds FS MA after OVK silence / aspect change / flicker</td><td class="num">6 s · 2 s · 2–5 s</td><td class="num">5.1 · 5.2 · 18.8</td><td class="num">S10</td></tr>
+      <tr><td>SVK deregisters silent loco (Absolute / Automatic)</td><td class="num">2 min / 30 s</td><td class="num">3.4.5.3</td><td class="num">S05</td></tr>
+      <tr><td>Rear-end stopping margin behind train ahead</td><td class="num">300 m</td><td class="num">14.3 · 3.5.6.4</td><td class="num">S04</td></tr>
+      <tr><td>Roll-back before intervention</td><td class="num">5 m</td><td class="num">13.1</td><td class="num">S08</td></tr>
+      <tr><td>Stop accuracy at EOA (90% / 98% of cases)</td><td class="num">≤5 m / ≤30 m</td><td class="num">3.5.7.1</td><td class="num">S01</td></tr>
+      <tr><td>PG speed disagreement for one frame → SF</td><td class="num">&gt;5 km/h</td><td class="num">20.5.1</td><td class="num">S09</td></tr>
+      <tr><td>Odometry error tolerance before SVK SoS</td><td class="num">120 m</td><td class="num">20.7.1</td><td class="num">S12</td></tr>
+      <tr><td>LC auto-whistle start distance</td><td class="num">600 m</td><td class="num">15.8</td><td class="num">S11</td></tr>
+      <tr><td>Max gap between normal tags · odometry error bound</td><td class="num">1000 m · 5 m + 5%</td><td class="num">3.4.2.6 · 3.4.2.4</td><td class="num">TSE check</td></tr>
+      <tr><td>Radio-hole distance computed by OVK</td><td class="num">hole + 10 s × v</td><td class="num">3.4.8.7(g)</td><td class="num">v2</td></tr>
+      <tr><td>Train length accuracy / update threshold</td><td class="num">±25 m / 25 m</td><td class="num">8.1.3–8.1.4</td><td class="num">v2</td></tr>
+    </tbody>
+  </table>
+
+</section>
+
+<section>
+  <div class="eyebrow">Appendix · continued</div>
+  <h2>Glossary &amp; <i>design language</i></h2>
+  <table>
+    <tbody>
+      <tr><td class="num">ATP</td><td>Automatic Train Protection</td><td class="num">MA · EOA</td><td>Movement Authority · End of Authority</td></tr>
+      <tr><td class="num">SVK · OVK</td><td>Stationary · Onboard Kavach</td><td class="num">TIN</td><td>Track Identification Number</td></tr>
+      <tr><td class="num">LP-OCIP · DMI</td><td>Loco Pilot Operation cum Indication Panel · Driver Machine Interface</td><td class="num">SMOCIP</td><td>Station Master Operation cum Indication Panel</td></tr>
+      <tr><td class="num">BIU</td><td>Brake Interface Unit</td><td class="num">NB · FSB · EB</td><td>Normal · Full-Service · Emergency brake</td></tr>
+      <tr><td class="num">RIU</td><td>Remote Interface Unit</td><td class="num">PG</td><td>Pulse Generator (speed sensor)</td></tr>
+      <tr><td class="num">NMS</td><td>Network Monitoring System</td><td class="num">TSRMS</td><td>Temporary Speed Restriction Management System</td></tr>
+      <tr><td class="num">PSR · TSR</td><td>Permanent · Temporary Speed Restriction</td><td class="num">LSS</td><td>Last Stop Signal</td></tr>
+      <tr><td class="num">SoS</td><td>Emergency stop message (manual or generated)</td><td class="num">SIL</td><td>Safety Integrity Level (CENELEC)</td></tr>
+      <tr><td class="num">ABS</td><td>Absolute Block Section</td><td class="num">L_doubt</td><td>Odometry uncertainty window for tag expectation</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box dark">
+    <h3>Design language: "Signal Box"</h3>
+    <p style="margin:0">One visual identity throughout, drawn from vintage railway print: <b>olive and sage greens</b> on <b>parchment</b>, <b>rust</b> for anything that needs attention, and brass hairlines with ring-and-dot ornaments. Torn-paper edges separate scenes. Type is <b>Bodoni Moda</b> for display, <b>Manrope</b> for reading and <b>JetBrains Mono</b> for clause numbers, packet fields and timings. Signal colours (<span class="aspect"><i class="r"></i><i class="y"></i><i class="g"></i></span>) are reserved for real signal aspects and pass/fail states, never for decoration.</p>
+  </div>
+</section>
+
+</body>
+</html>

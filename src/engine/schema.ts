@@ -1,0 +1,141 @@
+/**
+ * Scenario file format (validated with Zod at every boundary).
+ * A scenario holds the parts FRS 8.2.1.2 lists — test sequence, track
+ * description, train description, simulation details — plus faults and
+ * expected observables.
+ */
+import { z } from 'zod'
+
+const id = z.string().min(1)
+
+/** Nominal = travelling from a track's `a` node to its `b` node (absolute location increasing). */
+export const Direction = z.enum(['nominal', 'reverse'])
+export const Aspect = z.enum(['R', 'Y', 'YY', 'G'])
+export const PointPosition = z.enum(['normal', 'reverse'])
+export const BrakeLevel = z.enum(['NB', 'FSB', 'EB'])
+
+export const Node = z.object({ id, x: z.number(), y: z.number() })
+
+export const Track = z.object({
+  id,
+  /** Track Identification Number (SRS 16). */
+  tin: z.number().int().positive(),
+  a: id,
+  b: id,
+  lengthM: z.number().positive(),
+  /** Positive = rising in the nominal direction, per mille. */
+  gradientPermille: z.number().default(0),
+  /** Extra drawing vertices between a and b (schematic only). */
+  via: z.array(z.tuple([z.number(), z.number()])).default([]),
+})
+
+export const Point = z.object({
+  id,
+  node: id,
+  /** The single track on the toe side of the switch. */
+  toe: id,
+  normal: id,
+  reverse: id,
+  initial: PointPosition.default('normal'),
+})
+
+export const Signal = z.object({
+  id,
+  track: id,
+  /** Distance from the track's `a` node. */
+  offsetM: z.number().nonnegative(),
+  facing: Direction,
+  kind: z.enum(['distant', 'home', 'starter', 'lss', 'auto', 'gate']),
+  initialAspect: Aspect.default('R'),
+})
+
+export const Tag = z.object({
+  id,
+  track: id,
+  offsetM: z.number().nonnegative(),
+  /** Absolute location programmed into the tag. */
+  absLocM: z.number(),
+  tin: z.number().int().positive(),
+  /** Tags are duplicated (SRS 3.4.2.2); both tags of a pair share this id. */
+  pair: id,
+  kind: z.enum(['normal', 'lc', 'adjacent', 'adjustment']).default('normal'),
+})
+
+export const Yard = z.object({
+  name: z.string(),
+  nodes: z.array(Node).min(2),
+  tracks: z.array(Track).min(1),
+  points: z.array(Point).default([]),
+  signals: z.array(Signal).default([]),
+  tags: z.array(Tag).default([]),
+})
+
+export const Train = z.object({
+  locoId: id,
+  lengthM: z.number().positive(),
+  maxKmph: z.number().positive().default(110),
+  start: z.object({ track: id, offsetM: z.number().nonnegative(), dir: Direction }),
+})
+
+const at = { atSec: z.number().nonnegative() }
+export const TimelineEntry = z.discriminatedUnion('action', [
+  z.object({ ...at, action: z.literal('SET_TARGET_SPEED'), train: id, kmph: z.number().nonnegative() }),
+  z.object({ ...at, action: z.literal('SET_POINT'), point: id, position: PointPosition }),
+  z.object({ ...at, action: z.literal('SET_ASPECT'), signal: id, aspect: Aspect }),
+])
+
+const window = { id, startSec: z.number().nonnegative(), endSec: z.number().positive().optional() }
+export const Fault = z.discriminatedUnion('kind', [
+  /** RFID-S withholds these tags from the reader. */
+  z.object({ ...window, kind: z.literal('RFID_DROP'), tags: z.array(id).min(1) }),
+  /** Pulse generators over/under-read: OVK odometry = true distance × factor. */
+  z.object({ ...window, kind: z.literal('ODO_SCALE'), train: id, factor: z.number().positive() }),
+])
+
+/** Expected observable for the Evaluation Tool (matcher arrives in week 7). */
+export const Observable = z.object({
+  id,
+  event: z.string(),
+  filters: z.record(z.string(), z.unknown()).default({}),
+  at: z
+    .object({
+      after: z.string().optional(),
+      sec: z.tuple([z.number(), z.number()]).optional(),
+      locM: z.tuple([z.number(), z.number()]).optional(),
+    })
+    .default({}),
+})
+
+export const Scenario = z.object({
+  schemaVersion: z.literal(1),
+  id,
+  title: z.string(),
+  description: z.string().default(''),
+  clauseRefs: z.array(z.string()).default([]),
+  seed: z.number().int().nonnegative().default(1),
+  durationSec: z.number().positive().default(300),
+  yard: Yard,
+  trains: z.array(Train).min(1),
+  timeline: z.array(TimelineEntry).default([]),
+  faults: z.array(Fault).default([]),
+  expect: z.array(Observable).default([]),
+})
+
+export type Direction = z.infer<typeof Direction>
+export type Aspect = z.infer<typeof Aspect>
+export type PointPosition = z.infer<typeof PointPosition>
+export type BrakeLevel = z.infer<typeof BrakeLevel>
+export type Node = z.infer<typeof Node>
+export type Track = z.infer<typeof Track>
+export type Point = z.infer<typeof Point>
+export type Signal = z.infer<typeof Signal>
+export type Tag = z.infer<typeof Tag>
+export type Yard = z.infer<typeof Yard>
+export type Train = z.infer<typeof Train>
+export type TimelineEntry = z.infer<typeof TimelineEntry>
+export type Fault = z.infer<typeof Fault>
+export type FaultKind = Fault['kind']
+export type Observable = z.infer<typeof Observable>
+export type Scenario = z.infer<typeof Scenario>
+/** Authoring shape, before defaults are applied. */
+export type ScenarioInput = z.input<typeof Scenario>
