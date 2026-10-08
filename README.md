@@ -8,9 +8,11 @@ Grounded in RDSO's *System Requirements Specification of KAVACH* (RDSO/SPN/196/2
 
 📄 **[Project documentation (PDF)](docs/SignalSafe-Documentation.pdf)**: scope, the 12 scenarios, architecture and build plan, written before any code.
 
+The site has two pages: a scroll-driven **3D landing page** (`/`, three.js) that explains how Kavach and the bench work chapter by chapter, and the **workbench** (`/bench.html`).
+
 ## Status
 
-Week 1–2 of the [8-week plan](docs/SignalSafe-Documentation.pdf) are complete:
+Weeks 1–3 of the [8-week plan](docs/SignalSafe-Documentation.pdf) are complete:
 
 - [x] Deterministic engine: fixed 100 ms tick, 2 s radio frame, seeded RNG (same scenario + seed → identical log)
 - [x] Test Scenario Logger with a `causedBy` link on every event, plus causal-chain lookup
@@ -21,7 +23,8 @@ Week 1–2 of the [8-week plan](docs/SignalSafe-Documentation.pdf) are complete:
 - [x] Reference OVK position logic: direction from two tag pairs (SRS 7.2–7.5), linking/odometry correction with the 5 m + 5% bound (SRS 3.4.2.4), TIN self-deduction (SRS 16.6)
 - [x] Faults: RFID tag drop, pulse-generator over/under-read
 - [x] First workbench screen: live yard, OVK belief vs. ground truth, fault list, event log with "why?" causal chains
-- [ ] Week 3: reference Stationary Kavach (aspect → MA, control table, most-restrictive rule, flicker hold)
+- [x] Week 3: reference Stationary Kavach: aspect → MA (SRS 5.4), control-table route proving and most-restrictive rule (SRS 12.1–12.2), aspect-change/flicker hold (SRS 5.2, 18.8), registration (SRS 17.3); new faults: point not detected, signal flicker
+- [x] 3D landing page: ten scroll-linked vignettes (tags, radio frames, MA + braking curve, faults, evaluation, architecture, determinism)
 - [ ] Week 4: OVK supervision + radio (brake curve, SPAD, collisions, RMS, radio-failure fallback)
 - [ ] Weeks 5–8: Scenario Editor, DMI and SMOCIP simulators, Evaluation Tool, reports
 
@@ -29,7 +32,7 @@ Week 1–2 of the [8-week plan](docs/SignalSafe-Documentation.pdf) are complete:
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # http://localhost:5173 (landing) · /bench.html (workbench)
 npm test           # engine test suite (Vitest + fast-check property tests)
 npm run build      # typecheck + production build
 ```
@@ -45,9 +48,11 @@ src/engine/        simulation engine: pure TypeScript, no UI imports, runs in a 
   dynamics.ts      Speed Simulator (FRS 7.6.5)
   rfid.ts          RFID Simulator, swept detection (FRS 7.6.6)
   ovk/position.ts  reference OVK: location, direction, TIN
+  svk/svk.ts       reference SVK: movement authority, route proving, holds
   log.ts           Test Scenario Logger + causal chains (FRS 7.6.11)
   worker.ts        engine host for the browser
 src/ui/            React workbench
+src/landing/       3D landing page (three.js scene + chapters)
 src/scenarios/     sample scenarios
 docs/              project documentation (HTML source + PDF)
 ```

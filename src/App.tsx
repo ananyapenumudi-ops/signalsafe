@@ -20,14 +20,14 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">
+        <a className="brand" href="./" title="SignalSafe home">
           <span className="badge" aria-hidden>
             S
           </span>
           <span className="wordmark">
             Signal<i>Safe</i>
           </span>
-        </div>
+        </a>
         <span className="crumb">Test Bench Controller</span>
         <span className="crumb-sep">/</span>
         <span className="crumb strong">{scenario.title}</span>
