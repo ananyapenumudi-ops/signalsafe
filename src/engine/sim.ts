@@ -7,13 +7,14 @@
  *   3. RFID simulator: swept tag crossings → RFID-A → OVK
  *   4. Signals passed (ground truth for evaluation)
  *   5. Reference SVKs read interlocking inputs (every tick, to see flicker)
- *   6. On frame boundaries: SVKs build MAs from OVK location reports
- *      (direct for now; through the RMS from week 4), periodic loggers
- * OVK supervision and the RMS slot in from week 4.
+ *   6. OVK supervision: radio timers, braking curve → brake command (BIU)
+ *   7. On frame boundaries: location report up through the RMS, SVK builds
+ *      the MA, MA down through the RMS to the OVK; periodic loggers
  */
 import { driverAccel, stepKinematics } from './dynamics'
 import { EventLog, type LogEvent } from './log'
 import { OvkPosition } from './ovk/position'
+import { OvkSupervisor, type CauseKey } from './ovk/supervision'
 import { DT, TICKS_PER_FRAME, kmph } from './params'
 import { crossed } from './rfid'
 import { Rng } from './rng'
@@ -34,6 +35,11 @@ export interface TrainState {
   tagsAhead: OnRoute<Tag>[]
   signalsAhead: OnRoute<Signal>[]
   ovk: OvkPosition
+  sup: OvkSupervisor
+  /** Seqs of the events the supervisor's events cite. */
+  causes: Partial<Record<CauseKey, number>>
+  /** When the DMI auto-player will press Ack, if a prompt is pending. */
+  ackAt: number | null
   ma: MaPacket | null
   atEndOfLine: boolean
 }
@@ -53,6 +59,7 @@ export class Simulation {
   ended = false
 
   private nextTimeline = 0
+  private readonly rmsRng: Rng
   /** Fault id → seq of its FAULT_START event while active. */
   private readonly activeFaults = new Map<string, number>()
   private readonly faultEnded = new Set<string>()
@@ -61,6 +68,7 @@ export class Simulation {
     this.scenario = Scenario.parse(input)
     this.rng = new Rng(seed ?? this.scenario.seed)
     this.log = new EventLog(() => ({ tSim: this.tSim, frame: this.frame }))
+    this.rmsRng = this.rng.fork('rms')
     this.yard = new YardModel(this.scenario.yard)
     for (const s of this.scenario.yard.signals) this.aspects.set(s.id, s.initialAspect)
     this.scenario.timeline.sort((a, b) => a.atSec - b.atSec)
@@ -105,6 +113,9 @@ export class Simulation {
       tagsAhead: [],
       signalsAhead: [],
       ovk: new OvkPosition(),
+      sup: new OvkSupervisor(this.scenario.blockType),
+      causes: {},
+      ackAt: null,
       ma: null,
       atEndOfLine: false,
     }
@@ -193,7 +204,10 @@ export class Simulation {
     const id = t.spec.locoId
     const { seg } = YardModel.locate(t.route, t.routeM)
     const gradient = (seg.dir === 'nominal' ? 1 : -1) * seg.track.gradientPermille
-    t.accel = driverAccel({ v: t.speed, targetKmph: t.targetKmph, maxKmph: t.spec.maxKmph, gradientPermille: gradient, kavachBrake: t.kavachBrake })
+    // an obedient pilot (DMI auto-player) keeps a little under Kavach's permitted speed
+    const permitted = t.sup.dmi(this.tSim).permittedKmph
+    const target = t.spec.driver.obeysKavach && permitted !== null ? Math.min(t.targetKmph, Math.max(permitted - 4, 0)) : t.targetKmph
+    t.accel = driverAccel({ v: t.speed, targetKmph: target, maxKmph: t.spec.maxKmph, gradientPermille: gradient, kavachBrake: t.kavachBrake })
     const k = stepKinematics(t.speed, t.accel, DT)
     const from = t.routeM
     const routeEnd = t.route[t.route.length - 1]!.endM
@@ -241,13 +255,72 @@ export class Simulation {
     }
   }
 
-  // ── 6. SVK movement authority, once per frame ─────────────
+  // ── 6. OVK supervision, every tick ────────────────────────
+  private superviseTrain(t: TrainState) {
+    const id = t.spec.locoId
+    if (t.ackAt !== null && this.tSim >= t.ackAt) {
+      t.ackAt = null
+      this.logSup(t, t.sup.ack(this.tSim), 'DIS')
+    }
+    const o = t.ovk
+    const pos = o.absLocM === null || o.direction === 'undefined' ? null : { absLocM: o.absLocM, uncertaintyM: o.uncertaintyM, dir: (o.direction === 'nominal' ? 1 : -1) as 1 | -1 }
+    const scale = this.faultActive('ODO_SCALE').find((f) => f.train === id)?.factor ?? 1
+    this.logSup(t, t.sup.step(this.tSim, t.speed * scale, pos, t.spec.maxKmph))
+    t.kavachBrake = t.sup.brake
+  }
+
+  private logSup(t: TrainState, events: ReturnType<OvkSupervisor['step']>, source?: 'DIS') {
+    const id = t.spec.locoId
+    for (const ev of events) {
+      const causedBy = ev.cause.flatMap((k) => (t.causes[k] === undefined ? [] : [t.causes[k]!]))
+      const { cause: _cause, ...rest } = ev
+      const seq = this.log.append({ source: source ?? `OVK:${id}`, train: id, locM: round3(this.trueAbsLocM(t)), causedBy, ...rest } as never)
+      if (ev.type === 'DMI_ASPECT_BLANK') t.causes.blank = seq
+      if (ev.type === 'RADIO_FAILURE') t.causes.radioFailure = seq
+      if (ev.type === 'ACK_REQUEST') {
+        t.causes.ackRequest = seq
+        const after = t.spec.driver.acksAfterSec
+        if (after !== null) t.ackAt = this.tSim + after
+      }
+      if (ev.type === 'SPAD') t.causes.trip = seq
+    }
+  }
+
+  /** Manual Common/Ack press from the DMI simulator. */
+  ack(locoId: string) {
+    const t = this.train(locoId)
+    t.ackAt = null
+    this.logSup(t, t.sup.ack(this.tSim), 'DIS')
+  }
+
+  /** RMS: is this packet delivered? Logs the packet either way. */
+  private radio(dir: 'up' | 'down', kind: 'LOC' | 'MA', t: TrainState): { delivered: boolean; seq: number } {
+    const loss = this.faultActive('RADIO_LOSS').find((f) => (f.direction === 'both' || f.direction === dir) && (!f.train || f.train === t.spec.locoId))
+    const drop = loss ? undefined : this.faultActive('RADIO_DROP').find((f) => (f.direction === 'both' || f.direction === dir) && this.rmsRng.chance(f.probability))
+    const fault = loss ?? drop
+    const seq = this.log.append({
+      source: 'RMS',
+      type: 'RADIO_PACKET',
+      train: t.spec.locoId,
+      data: fault ? { dir, kind, delivered: false, fault: fault.id } : { dir, kind, delivered: true },
+      causedBy: fault ? [this.activeFaults.get(fault.id)!] : [],
+    })
+    // bench-side causality: remember the first packet lost (either way) since the last
+    // delivered MA, so the OVK's reaction to silence can cite it
+    if (fault && t.causes.silence === undefined) t.causes.silence = seq
+    if (!fault && dir === 'down') delete t.causes.silence
+    return { delivered: !fault, seq }
+  }
+
+  // ── 7. radio frame: report up, MA down ────────────────────
   private runSvks() {
     for (const t of this.trains) {
       const o = t.ovk
       if (o.direction === 'undefined' || o.absLocM === null || o.tin === null) continue // SRS 17.3
       const id = t.spec.locoId
       const report = { locoId: id, absLocM: o.absLocM, direction: o.direction, tin: o.tin }
+      const up = this.radio('up', 'LOC', t)
+      if (!up.delivered) continue
       // Serving SVK = owner of the approaching signal (handover per Annex P comes later)
       const approaching = this.svks[0]?.signalsAhead(report, this.inputs)?.ahead[0]?.item.id
       const svk = (approaching && this.svks.find((s) => s.ownsSignal(approaching))) || this.svks.find((s) => s.id === t.ma?.svk) || this.svks[0]
@@ -273,6 +346,11 @@ export class Simulation {
         this.log.append({ source: `SVK:${svk.id}`, type: 'SVK_MA', train: id, data: packet, causedBy: [...causes].sort((a, b) => a - b) })
       }
       t.ma = packet
+      if (!packet) continue
+      const down = this.radio('down', 'MA', t)
+      if (!down.delivered) continue
+      t.causes.ma = down.seq
+      this.logSup(t, t.sup.onMa(packet, report.absLocM, report.direction === 'nominal' ? 1 : -1, this.tSim))
     }
   }
 
@@ -305,6 +383,7 @@ export class Simulation {
     if (this.ended) return
     this.runController()
     for (const t of this.trains) this.moveTrain(t)
+    for (const t of this.trains) this.superviseTrain(t)
     this.tick++
     for (const svk of this.svks) svk.observe(this.tSim, this.inputs)
     if (this.tick % TICKS_PER_FRAME === 0) {
@@ -351,6 +430,7 @@ export class Simulation {
           ma: t.ma,
           maSpans: t.ma ? bodySpans(t.route, t.routeM, t.routeM + t.ma.maM) : [],
           kavachBrake: t.kavachBrake,
+          dmi: t.sup.dmi(this.tSim),
           atEndOfLine: t.atEndOfLine,
           ovk: {
             direction: t.ovk.direction,

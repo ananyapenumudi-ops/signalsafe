@@ -1,6 +1,7 @@
 /** Plain-data view of the simulation sent from the worker to the UI each frame. */
 import type { Aspect, BrakeLevel, Direction, PointPosition } from './schema'
 import type { MaPacket } from './svk/svk'
+import type { DmiState } from './ovk/supervision'
 
 export interface TrainSnapshot {
   locoId: string
@@ -17,6 +18,8 @@ export interface TrainSnapshot {
   ma: MaPacket | null
   maSpans: { track: string; fromM: number; toM: number }[]
   kavachBrake: BrakeLevel | null
+  /** What the driver display shows (FRS 7.6.8). */
+  dmi: DmiState
   atEndOfLine: boolean
   ovk: {
     direction: Direction | 'undefined'

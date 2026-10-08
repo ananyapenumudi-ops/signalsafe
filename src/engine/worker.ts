@@ -16,6 +16,7 @@ export type ToWorker =
   | { type: 'pause' }
   | { type: 'step' }
   | { type: 'speed'; speed: number }
+  | { type: 'ack'; locoId: string }
 
 export type FromWorker =
   | { type: 'update'; snapshot: Snapshot; events: LogEvent[]; reset: boolean; playing: boolean }
@@ -84,6 +85,10 @@ self.onmessage = (e: MessageEvent<ToWorker>) => {
       case 'step':
         stop()
         sim?.step()
+        publish()
+        break
+      case 'ack':
+        sim?.ack(msg.locoId)
         publish()
         break
       case 'speed':

@@ -25,7 +25,7 @@ export const twoStation: ScenarioInput = {
     'A loco enters Kavach territory at Station A, derives direction and TIN from the first two tag pairs, registers with SVK-A and receives movement authority. Faults: the pulse generators under-read by 3%, a tag pair in the block is withheld, point P2 loses detection under a cleared signal, and Station B home signal S11 flickers on approach.',
   clauseRefs: ['SRS 7.2', 'SRS 7.5', 'SRS 3.4.2.4', 'SRS 16.6', 'SRS 17.3', 'SRS 5.4', 'SRS 12.1', 'SRS 5.2', 'SRS 18.8'],
   seed: 7731,
-  durationSec: 330,
+  durationSec: 370,
   yard: {
     name: 'Station A — Station B',
     nodes: [
@@ -69,6 +69,7 @@ export const twoStation: ScenarioInput = {
       ...pair('T06', 'BLOCK', 950, 2050, 201),
       ...pair('T07', 'BLOCK', 1850, 2950, 201),
       ...pair('T08', 'BLOCK', 2750, 3850, 201),
+      ...pair('T08S', 'BLOCK', 2843, 3943, 201), // signal-foot tag at S11 (SRS 3.4.2.6(b))
       ...pair('T09', 'B_MAIN', 300, 4400, 302),
       ...pair('T10', 'B_LOOP', 310, 4400, 303),
       ...pair('T11', 'B_EXIT', 200, 5000, 301),
@@ -95,8 +96,8 @@ export const twoStation: ScenarioInput = {
     { atSec: 120, action: 'SET_POINT', point: 'P3', position: 'reverse' },
     { atSec: 120, action: 'SET_POINT', point: 'P4', position: 'reverse' },
     { atSec: 120, action: 'SET_ASPECT', signal: 'S11', aspect: 'YY' },
-    { atSec: 200, action: 'SET_TARGET_SPEED', train: '37421', kmph: 30 },
-    { atSec: 290, action: 'SET_TARGET_SPEED', train: '37421', kmph: 0 },
+    { atSec: 230, action: 'SET_TARGET_SPEED', train: '37421', kmph: 30 },
+    { atSec: 320, action: 'SET_TARGET_SPEED', train: '37421', kmph: 0 },
   ],
   faults: [
     { id: 'pg-underread', kind: 'ODO_SCALE', train: '37421', factor: 0.97, startSec: 0 },

@@ -12,7 +12,7 @@ The site has two pages: a scroll-driven **3D landing page** (`/`, three.js) that
 
 ## Status
 
-Weeks 1–3 of the [8-week plan](docs/SignalSafe-Documentation.pdf) are complete:
+Weeks 1–4 of the [8-week plan](docs/SignalSafe-Documentation.pdf) are complete:
 
 - [x] Deterministic engine: fixed 100 ms tick, 2 s radio frame, seeded RNG (same scenario + seed → identical log)
 - [x] Test Scenario Logger with a `causedBy` link on every event, plus causal-chain lookup
@@ -25,7 +25,8 @@ Weeks 1–3 of the [8-week plan](docs/SignalSafe-Documentation.pdf) are complete
 - [x] First workbench screen: live yard, OVK belief vs. ground truth, fault list, event log with "why?" causal chains
 - [x] Week 3: reference Stationary Kavach: aspect → MA (SRS 5.4), control-table route proving and most-restrictive rule (SRS 12.1–12.2), aspect-change/flicker hold (SRS 5.2, 18.8), registration (SRS 17.3); new faults: point not detected, signal flicker
 - [x] 3D landing page: ten scroll-linked vignettes (tags, radio frames, MA + braking curve, faults, evaluation, architecture, determinism)
-- [ ] Week 4: OVK supervision + radio (brake curve, SPAD, collisions, RMS, radio-failure fallback)
+- [x] Week 4: Radio Message Simulator (reports up, MAs down, loss/drop faults); OVK supervision with braking curve from the max safe front end (SRS 11.5.1), FSB/EB interventions, hold at a stand, trip on passing the EOA; radio fallback per SRS 20.1 (blank at 6 s, failure at 30/10 s, ack within 15 s or FSB); SR/FS/TRIP modes; scenarios **S01** (stop short of a red) and **S05/S05b** (radio silent); DMI panel with Ack button and scenario picker
+- [ ] Next: head-on / rear-end collision prevention (SRS 14), roll-back (SRS 13), LC auto-whistle (SRS 15), remaining scenarios
 - [ ] Weeks 5–8: Scenario Editor, DMI and SMOCIP simulators, Evaluation Tool, reports
 
 ## Run it
@@ -58,5 +59,7 @@ docs/              project documentation (HTML source + PDF)
 ```
 
 ## Honest limits
+
+S01 stops the train about 7 m short of the red signal: safe, but outside SRS 3.5.7.1's "≤ 5 m in 90% of cases". The 5 m tag accuracy plus a stand-in stop margin dominate; closing the gap needs the real braking algorithm (Annexure O).
 
 Several SRS annexures aren't in our sources: A1 (mode transitions), B (DMI layout), C (radio protocol), D (tag format) and O (braking algorithm). Anything that depends on them uses a labelled **stand-in** (see `standIn: true` in [`params.ts`](src/engine/params.ts)), so it is never mistaken for the specification.

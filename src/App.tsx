@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Scenario } from './engine/schema'
 import { checkYard } from './engine/yard'
-import { twoStation } from './scenarios/twoStation'
+import { LIBRARY } from './scenarios/library'
 import { faultSummary } from './ui/describe'
 import { EventFeed } from './ui/EventFeed'
 import { TrainPanel } from './ui/TrainPanel'
@@ -11,9 +11,11 @@ import { useSimulation } from './ui/useSimulation'
 const SPEEDS = [1, 4, 10, 20]
 
 export default function App() {
-  const scenario = useMemo(() => Scenario.parse(twoStation), [])
+  const [pick, setPick] = useState(0)
+  const input = LIBRARY[pick]!.scenario
+  const scenario = useMemo(() => Scenario.parse(input), [input])
   const issues = useMemo(() => checkYard(scenario.yard), [scenario])
-  const sim = useSimulation(twoStation)
+  const sim = useSimulation(input)
   const snap = sim.snapshot
   const progress = snap ? snap.tSim / snap.durationSec : 0
 
@@ -30,7 +32,16 @@ export default function App() {
         </a>
         <span className="crumb">Test Bench Controller</span>
         <span className="crumb-sep">/</span>
-        <span className="crumb strong">{scenario.title}</span>
+        <label className="picker">
+          <span className="sr-only">Scenario</span>
+          <select value={pick} onChange={(e) => setPick(Number(e.target.value))}>
+            {LIBRARY.map((l, i) => (
+              <option key={l.scenario.id} value={i}>
+                {l.scenario.title}
+              </option>
+            ))}
+          </select>
+        </label>
         <span className="topbar-meta">Kavach SRS v4.0 Amdt-3 · FRS GTB draft 2026</span>
       </header>
 
@@ -83,7 +94,7 @@ export default function App() {
         </section>
 
         <div className="side">
-          {snap?.trains.map((t) => <TrainPanel key={t.locoId} t={t} />)}
+          {snap?.trains.map((t) => <TrainPanel key={t.locoId} t={t} onAck={() => sim.ack(t.locoId)} />)}
 
           <section className="panel">
             <header className="panel-head">

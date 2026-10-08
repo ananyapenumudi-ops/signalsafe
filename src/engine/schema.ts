@@ -91,11 +91,20 @@ export const Yard = z.object({
   stations: z.array(Station).default([]),
 })
 
+/** How the DMI auto-player (FRS 7.6.8.5) drives: obedient pilots respect the SR ceiling and acknowledge prompts. */
+export const Driver = z.object({
+  /** Seconds before acknowledging a DMI prompt (radio failure), or null to never acknowledge. */
+  acksAfterSec: z.number().nonnegative().nullable().default(3),
+  /** Respect the Staff Responsible ceiling and Kavach's permitted speed (false = keeps notching up). */
+  obeysKavach: z.boolean().default(true),
+})
+
 export const Train = z.object({
   locoId: id,
   lengthM: z.number().positive(),
   maxKmph: z.number().positive().default(110),
   start: z.object({ track: id, offsetM: z.number().nonnegative(), dir: Direction }),
+  driver: Driver.default({ acksAfterSec: 3, obeysKavach: true }),
 })
 
 const at = { atSec: z.number().nonnegative() }
@@ -113,6 +122,10 @@ export const Fault = z.discriminatedUnion('kind', [
   z.object({ ...window, kind: z.literal('ODO_SCALE'), train: id, factor: z.number().positive() }),
   /** Point detection (WKR) lost: the SVK sees the point as undetermined. */
   z.object({ ...window, kind: z.literal('POINT_NOT_DETECTED'), point: id }),
+  /** RMS withholds every packet in a direction ('up' = OVK→SVK, 'down' = SVK→OVK). */
+  z.object({ ...window, kind: z.literal('RADIO_LOSS'), direction: z.enum(['up', 'down', 'both']).default('both'), train: id.optional() }),
+  /** RMS drops each packet with this probability (seeded). */
+  z.object({ ...window, kind: z.literal('RADIO_DROP'), probability: z.number().min(0).max(1), direction: z.enum(['up', 'down', 'both']).default('both') }),
   /** Signal ECR input chatters between ON and its set aspect. */
   z.object({ ...window, kind: z.literal('SIGNAL_FLICKER'), signal: id, periodSec: z.number().positive().default(0.5) }),
 ])
@@ -133,6 +146,8 @@ export const Observable = z.object({
 
 export const Scenario = z.object({
   schemaVersion: z.literal(1),
+  /** Absolute block uses the longer radio-failure timeout (SRS 20.1.1). */
+  blockType: z.enum(['absolute', 'automatic']).default('absolute'),
   id,
   title: z.string(),
   description: z.string().default(''),
@@ -159,6 +174,7 @@ export type Route = z.infer<typeof Route>
 export type Station = z.infer<typeof Station>
 export type Yard = z.infer<typeof Yard>
 export type Train = z.infer<typeof Train>
+export type Driver = z.infer<typeof Driver>
 export type TimelineEntry = z.infer<typeof TimelineEntry>
 export type Fault = z.infer<typeof Fault>
 export type FaultKind = Fault['kind']

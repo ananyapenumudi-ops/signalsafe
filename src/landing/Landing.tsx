@@ -53,7 +53,7 @@ const CHAPTERS: Chapter[] = [
     eyebrow: 'Radio',
     title: ['Every two seconds, ', 'a conversation'],
     side: 'right',
-    status: { kind: 'building', text: 'Reports live · radio channel in build' },
+    status: { kind: 'live', text: 'Live in the bench · try S05' },
     body: [
       'Each frame, the loco reports where it is. The station replies with what lies ahead: the next signal, its aspect, its distance, and how far the train may go.',
       'If the radio goes quiet for 6 s, the aspect on the driver’s display blanks. After 30 s it’s declared a radio failure. If there’s no acknowledgement within 15 s, the brakes go on.',
@@ -69,7 +69,7 @@ const CHAPTERS: Chapter[] = [
     eyebrow: 'Movement authority',
     title: ['Authority, and the ', 'curve that guards it'],
     side: 'left',
-    status: { kind: 'building', text: 'MA live · braking in build' },
+    status: { kind: 'live', text: 'Live in the bench · try S01' },
     body: [
       'The station works out how far the train may go: up to the first signal at danger. If anything disagrees, it treats the signal as red. A point not proved, or a berthing line occupied, is enough. A flickering signal stays red until it is stable.',
       'The Onboard Kavach then draws a braking curve to that point, and brakes if the train would cross it.',
@@ -85,10 +85,10 @@ const CHAPTERS: Chapter[] = [
     eyebrow: 'Fault injection',
     title: ['Break it ', 'on purpose'],
     side: 'right',
-    status: { kind: 'live', text: '4 faults live · more coming' },
+    status: { kind: 'live', text: '6 faults live · more coming' },
     body: [
       'A fault is a scheduled change to what the equipment sees through its interfaces, never an edit to its logic. This is exactly how a hardware bench works.',
-      'Drop a tag pair. Make the pulse generators under-read. Lose point detection under a cleared signal. Make a signal chatter. Next come radio loss, packet delay, GPS failure and brake-feedback loss.',
+      'Drop a tag pair. Make the pulse generators under-read. Lose point detection under a cleared signal. Make a signal chatter. Silence the radio, or drop a share of its packets. Next come packet delay, GPS failure and brake-feedback loss.',
     ],
     facts: [
       { k: 'Tags', v: 'drop one, both, or plant a wrong one', ref: 'FRS 7.6.6.2' },
@@ -133,7 +133,7 @@ const CHAPTERS: Chapter[] = [
     eyebrow: 'Engineering',
     title: ['Deterministic ', 'to the byte'],
     side: 'left',
-    status: { kind: 'live', text: '43 tests · CI on every push' },
+    status: { kind: 'live', text: '63 tests · CI on every push' },
     body: [
       'Time moves in 100 ms ticks and 2 s frames, and all randomness comes from one seeded stream. The same scenario with the same seed gives the same log, every run, on every machine.',
       'Every number the engine enforces lives in one file, next to the clause it comes from. Property tests run thousands of random yards and speeds through it.',

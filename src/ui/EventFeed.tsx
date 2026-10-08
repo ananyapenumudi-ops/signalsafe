@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { LogEvent } from '../engine/log'
-import { describe, isNotable } from './describe'
+import { describe, notableEvents } from './describe'
 
 /** Causal chain behind an event, oldest cause first (mirrors EventLog.chain). */
 function chainOf(events: LogEvent[], seq: number): LogEvent[] {
@@ -42,7 +42,7 @@ function Row({ e, onSelect, selected }: { e: LogEvent; onSelect?: (seq: number) 
 export function EventFeed({ events }: { events: LogEvent[] }) {
   const [showAll, setShowAll] = useState(false)
   const [selected, setSelected] = useState<number | null>(null)
-  const visible = useMemo(() => (showAll ? events : events.filter(isNotable)).slice(-300).reverse(), [events, showAll])
+  const visible = useMemo(() => (showAll ? events : notableEvents(events)).slice(-300).reverse(), [events, showAll])
   const chain = useMemo(() => (selected === null ? [] : chainOf(events, selected)), [events, selected])
 
   return (

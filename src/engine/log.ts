@@ -5,8 +5,9 @@
  */
 import type { Aspect, BrakeLevel, Direction, FaultKind, PointPosition } from './schema'
 import type { MaPacket } from './svk/svk'
+import type { BrakeReason, Mode } from './ovk/supervision'
 
-export type Source = 'TBC' | 'YARD' | 'SS' | 'RFID-S' | 'FAULT' | `OVK:${string}` | `SVK:${string}`
+export type Source = 'TBC' | 'YARD' | 'SS' | 'RFID-S' | 'RMS' | 'FAULT' | 'DIS' | `OVK:${string}` | `SVK:${string}`
 
 /** Payload for each event type. Extend here as modules are added. */
 export interface EventDataMap {
@@ -24,7 +25,18 @@ export interface EventDataMap {
   /** What the OVK received through RFID-A. */
   TAG_READ: { tag: string; pair: string; absLocM: number; tin: number }
   SIGNAL_PASSED: { signal: string; aspect: Aspect }
-  BRAKE: { level: BrakeLevel | null }
+  /** Brake command to the BIU, with the supervision state that caused it. */
+  BRAKE: { level: BrakeLevel | null; reason: BrakeReason | null; speedKmph: number; permittedKmph: number | null; targetDistM: number | null }
+  /** A packet through the Radio Message Simulator (FRS 7.6.7). */
+  RADIO_PACKET: { dir: 'up' | 'down'; kind: 'LOC' | 'MA'; delivered: boolean; fault?: string }
+  OVK_MODE: { from: Mode; to: Mode; reason: string }
+  DMI_ASPECT_BLANK: { lastPacketAgeSec: number }
+  DMI_ASPECT_RESTORED: Record<string, never>
+  RADIO_FAILURE: { silentSec: number; limitSec: number }
+  ACK_REQUEST: { prompt: 'RADIO_FAILURE'; deadlineSec: number }
+  ACK: { prompt: 'RADIO_FAILURE'; afterSec: number }
+  /** OVK detected it passed its end of authority (SRS 12, 21.3(a)). */
+  SPAD: { signal: string | null; overrunM: number }
   OVK_DIRECTION: { direction: Direction; fromTags: [string, string] }
   OVK_TIN: { from: number | null; to: number }
   OVK_LOCATION_CORRECTED: { tag: string; errorM: number; boundM: number; withinBound: boolean }

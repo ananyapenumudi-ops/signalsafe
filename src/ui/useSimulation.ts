@@ -46,6 +46,7 @@ export function useSimulation(scenario: ScenarioInput) {
     play: () => send({ type: 'play' }),
     pause: () => send({ type: 'pause' }),
     step: () => send({ type: 'step' }),
+    ack: (locoId: string) => send({ type: 'ack', locoId }),
     reset: () => {
       setError(null)
       send({ type: 'load', scenario })

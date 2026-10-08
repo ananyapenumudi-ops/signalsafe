@@ -447,6 +447,141 @@ button {
 .dial-value {
   stroke: var(--olive);
 }
+.dial-value.braking {
+  stroke: var(--rust);
+}
+.dial-permitted {
+  fill: none;
+  stroke: var(--sage);
+  stroke-width: 14;
+  opacity: 0.55;
+}
+.picker select {
+  font: 700 13px var(--sans);
+  color: var(--parch);
+  background: var(--olive-2);
+  border: 1px solid var(--olive-3);
+  border-radius: 8px;
+  padding: 5px 10px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.dmi {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  background: var(--ink);
+  color: var(--parch);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.mode {
+  font: 700 12px var(--mono);
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--olive-3);
+}
+.mode-fs {
+  background: var(--sig-grn);
+}
+.mode-sr {
+  background: var(--sig-yel);
+  color: var(--ink);
+}
+.mode-trip {
+  background: var(--sig-red);
+}
+.lamp {
+  display: flex;
+  gap: 3px;
+  min-width: 30px;
+}
+.lamp i {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+}
+.lamp em {
+  font: 700 10px var(--mono);
+  color: var(--sig-yel);
+  font-style: normal;
+}
+.dmi-k {
+  font: 700 11px var(--mono);
+  color: var(--sage);
+}
+.dmi .radio {
+  margin-left: auto;
+  font: 700 11px var(--mono);
+}
+.dmi .radio.warn {
+  color: var(--sig-yel);
+}
+.dmi .radio.bad {
+  color: #ff7a6e;
+}
+.target {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.target .dmi-k {
+  color: var(--ink-mute);
+}
+.target .bar {
+  height: 8px;
+  background: var(--sand);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.target .bar span {
+  display: block;
+  height: 100%;
+  background: var(--olive);
+}
+.alertbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--rust-soft);
+  border: 1px solid var(--rust);
+  color: var(--rust-deep);
+  font-size: 13px;
+}
+.alertbar.eb {
+  background: var(--sig-red);
+  color: #fff;
+}
+.ack {
+  border: 0;
+  border-radius: 99px;
+  padding: 6px 14px;
+  background: var(--rust);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    box-shadow: 0 0 0 5px rgba(196, 85, 43, 0.25);
+  }
+}
 .dial-num {
   font: 500 30px var(--serif);
   fill: var(--ink);

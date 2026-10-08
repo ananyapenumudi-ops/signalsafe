@@ -62,6 +62,14 @@ export const PARAMS = {
   radioHoleExtraSec: p(10, 's', 'SRS 3.4.8.7(g)', 'Radio-hole distance margin (× current speed)'),
   trainLengthAccuracyM: p(25, 'm', 'SRS 8.1.4', 'Train length accuracy'),
 
+  // ── OVK supervision stand-ins (Annexures A1/A2/O not available) ──
+  brakeCurveDecel: p(0.45, 'm/s²', 'stand-in', 'Deceleration assumed by the permitted-speed curve', { standIn: true, note: 'Annexure O braking algorithm; set below FSB so the curve is achievable' }),
+  stopMarginM: p(3, 'm', 'stand-in', 'Curve ends this far before the EOA', { standIn: true, note: 'tuned toward SRS 3.5.7.1 (≤ 5 m in 90% of cases)' }),
+  fsbInterventionKmph: p(2, 'km/h', 'stand-in', 'Overspeed above permitted before FSB', { standIn: true }),
+  ebInterventionKmph: p(10, 'km/h', 'stand-in', 'Overspeed above permitted before EB', { standIn: true }),
+  fsbReleaseKmph: p(3, 'km/h', 'stand-in', 'FSB released once this far below permitted', { standIn: true }),
+  srCeilingKmph: p(25, 'km/h', 'stand-in', 'Staff Responsible speed ceiling', { standIn: true, note: 'configurable per Annexure A2' }),
+
   // ── bench accuracy ──────────────────────────────────────
   speedSimMaxDeviation: p(0.01, 'ratio', 'FRS 7.6.5.5', 'Speed simulator deviation from theoretical (max)'),
 

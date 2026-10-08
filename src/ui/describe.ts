@@ -50,8 +50,31 @@ export function describe(e: LogEvent): Described {
         tone: e.data.withinBound ? 'ovk' : 'fault',
         clause: 'SRS 3.4.2.4',
       }
-    case 'BRAKE':
-      return { text: e.data.level ? `Kavach brake ${e.data.level}` : 'Kavach brake released', tone: 'fault' }
+    case 'BRAKE': {
+      const d = e.data
+      if (!d.level) return { text: `Kavach brake released at ${d.speedKmph} km/h`, tone: 'ovk', clause: 'SRS 3.5.6.3(d)' }
+      const why = BRAKE_WHY[d.reason ?? 'CURVE']
+      const ctx = d.permittedKmph !== null && d.reason !== 'NO_ACK' && d.reason !== 'TRIP' ? ` · ${d.speedKmph} km/h vs permitted ${d.permittedKmph}` : ` · ${d.speedKmph} km/h`
+      return { text: `Kavach ${d.level}: ${why.text}${ctx}${d.targetDistM !== null ? ` · ${Math.round(d.targetDistM)} m to EOA` : ''}`, tone: 'fault', clause: why.clause }
+    }
+    case 'RADIO_PACKET':
+      return e.data.delivered
+        ? { text: `${e.data.kind === 'LOC' ? 'Location report ↑' : 'MA ↓'} delivered`, tone: 'status', clause: 'FRS 7.6.7' }
+        : { text: `${e.data.kind === 'LOC' ? 'Location report ↑' : 'MA ↓'} lost (${e.data.fault})`, tone: 'fault', clause: 'FRS 7.6.7.5' }
+    case 'OVK_MODE':
+      return { text: `Mode ${e.data.from} → ${e.data.to}: ${e.data.reason}`, tone: e.data.to === 'TRIP' ? 'fault' : 'ovk' }
+    case 'DMI_ASPECT_BLANK':
+      return { text: `DMI aspect blanked: last SVK packet ${e.data.lastPacketAgeSec} s old, FS continues`, tone: 'fault', clause: 'SRS 20.1.2' }
+    case 'DMI_ASPECT_RESTORED':
+      return { text: 'DMI aspect restored: SVK packets resumed', tone: 'ovk', clause: 'SRS 3.4.8.7(h)' }
+    case 'RADIO_FAILURE':
+      return { text: `Radio failure: no SVK packet for ${e.data.silentSec} s (limit ${e.data.limitSec} s)`, tone: 'fault', clause: 'SRS 20.1.1' }
+    case 'ACK_REQUEST':
+      return { text: `DMI asks loco pilot to acknowledge within ${e.data.deadlineSec} s`, tone: 'fault', clause: 'SRS 20.1.3' }
+    case 'ACK':
+      return { text: `Loco pilot acknowledged after ${e.data.afterSec} s`, tone: 'ovk', clause: 'SRS 3.5.5.7' }
+    case 'SPAD':
+      return { text: `Passed end of authority${e.data.signal ? ` at ${e.data.signal}` : ''} by ${e.data.overrunM} m: TRIP`, tone: 'fault', clause: 'SRS 12 · 21.3(a)' }
     case 'SVK_REGISTER':
       return { text: `${e.data.svk} registered loco at ${m(e.data.absLocM)}, ${e.data.direction}, TIN ${e.data.tin}`, tone: 'svk', clause: 'SRS 17.3' }
     case 'SVK_MA': {
@@ -75,6 +98,14 @@ export function describe(e: LogEvent): Described {
   }
 }
 
+const BRAKE_WHY = {
+  CURVE: { text: 'over the braking curve', clause: 'SRS 19.2–19.3' },
+  OVERSPEED_EB: { text: 'well over the braking curve', clause: 'SRS 3.5.6.4(g)' },
+  SR_CEILING: { text: 'over the Staff Responsible ceiling', clause: 'Annex A2 (stand-in)' },
+  NO_ACK: { text: 'radio failure not acknowledged in 15 s', clause: 'SRS 20.1.3' },
+  TRIP: { text: 'trip after passing the EOA', clause: 'SRS 12' },
+} as const
+
 const REASON = { ROUTE_MISMATCH: 'route not proved (points)', ROUTE_OCCUPIED: 'route occupied', HOLD: 'aspect-change hold' } as const
 
 /** One-line summary of a scheduled fault. */
@@ -88,8 +119,32 @@ export function faultSummary(f: Fault): string {
       return `${f.point} detection lost`
     case 'SIGNAL_FLICKER':
       return `${f.signal} flickers every ${f.periodSec} s`
+    case 'RADIO_LOSS':
+      return `radio ${f.direction === 'both' ? 'silent both ways' : f.direction === 'up' ? 'uplink lost' : 'downlink lost'}`
+    case 'RADIO_DROP':
+      return `${Math.round(f.probability * 100)}% packet loss (${f.direction})`
   }
 }
 
 /** Events worth showing by default (the rest are periodic or ground-truth noise). */
-export const isNotable = (e: LogEvent) => e.type !== 'OVK_STATUS' && !(e.type === 'TAG_CROSSED' && e.data.delivered)
+export const isNotable = (e: LogEvent) =>
+  e.type !== 'OVK_STATUS' && !(e.type === 'TAG_CROSSED' && e.data.delivered) && !(e.type === 'RADIO_PACKET' && e.data.delivered)
+
+/** Default view: notable events, with each radio outage shown once (its first lost packet). */
+export function notableEvents(events: LogEvent[]): LogEvent[] {
+  const lostStreak = new Set<string>()
+  const out: LogEvent[] = []
+  for (const e of events) {
+    if (e.type === 'RADIO_PACKET') {
+      const key = `${e.train}:${e.data.dir}`
+      if (e.data.delivered) lostStreak.delete(key)
+      else if (!lostStreak.has(key)) {
+        lostStreak.add(key)
+        out.push(e)
+      }
+      continue
+    }
+    if (isNotable(e)) out.push(e)
+  }
+  return out
+}
