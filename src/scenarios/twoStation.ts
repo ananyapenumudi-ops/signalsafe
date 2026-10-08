@@ -22,8 +22,8 @@ export const twoStation: ScenarioInput = {
   id: 'demo-two-station',
   title: 'Two stations, one block section',
   description:
-    'A loco enters Kavach territory at Station A, derives direction and TIN from the first two tag pairs, runs the block section and is routed into Station B loop. Two faults: the pulse generators under-read by 3%, and one tag pair in the block section is withheld.',
-  clauseRefs: ['SRS 7.2', 'SRS 7.3', 'SRS 7.5', 'SRS 3.4.2.4', 'SRS 3.5.4.6', 'SRS 16.6'],
+    'A loco enters Kavach territory at Station A, derives direction and TIN from the first two tag pairs, registers with SVK-A and receives movement authority. Faults: the pulse generators under-read by 3%, a tag pair in the block is withheld, point P2 loses detection under a cleared signal, and Station B home signal S11 flickers on approach.',
+  clauseRefs: ['SRS 7.2', 'SRS 7.5', 'SRS 3.4.2.4', 'SRS 16.6', 'SRS 17.3', 'SRS 5.4', 'SRS 12.1', 'SRS 5.2', 'SRS 18.8'],
   seed: 7731,
   durationSec: 330,
   yard: {
@@ -73,6 +73,21 @@ export const twoStation: ScenarioInput = {
       ...pair('T10', 'B_LOOP', 310, 4400, 303),
       ...pair('T11', 'B_EXIT', 200, 5000, 301),
     ],
+    // KAVACH control table (SRS 12.2): points to prove and tracks to be clear for each OFF aspect
+    controlTable: [
+      { id: 'S1-main', signal: 'S1', points: { P1: 'normal' }, tracks: ['A_MAIN'] },
+      { id: 'S1-loop', signal: 'S1', points: { P1: 'reverse' }, tracks: ['A_LOOP'] },
+      { id: 'S3-dep', signal: 'S3', points: { P2: 'normal' } },
+      { id: 'S4-dep', signal: 'S4', points: { P2: 'reverse' } },
+      { id: 'S11-main', signal: 'S11', points: { P3: 'normal' }, tracks: ['B_MAIN'] },
+      { id: 'S11-loop', signal: 'S11', points: { P3: 'reverse' }, tracks: ['B_LOOP'] },
+      { id: 'S13-dep', signal: 'S13', points: { P4: 'normal' } },
+      { id: 'S14-dep', signal: 'S14', points: { P4: 'reverse' } },
+    ],
+    stations: [
+      { id: 'SVK-A', name: 'Station A', signals: ['S1', 'S3', 'S4', 'S5'] },
+      { id: 'SVK-B', name: 'Station B', signals: ['S11', 'S13', 'S14'] },
+    ],
   },
   trains: [{ locoId: '37421', lengthM: 480, maxKmph: 110, start: { track: 'A_APP', offsetM: 5, dir: 'nominal' } }],
   timeline: [
@@ -86,5 +101,7 @@ export const twoStation: ScenarioInput = {
   faults: [
     { id: 'pg-underread', kind: 'ODO_SCALE', train: '37421', factor: 0.97, startSec: 0 },
     { id: 'drop-T07', kind: 'RFID_DROP', tags: ['T07a', 'T07b'], startSec: 0 },
+    { id: 'p2-undetected', kind: 'POINT_NOT_DETECTED', point: 'P2', startSec: 60, endSec: 66 },
+    { id: 's11-flicker', kind: 'SIGNAL_FLICKER', signal: 'S11', periodSec: 0.4, startSec: 150, endSec: 154 },
   ],
 }

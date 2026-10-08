@@ -1,7 +1,8 @@
 /** Human-readable text and clause for each log event. */
 import type { LogEvent } from '../engine/log'
+import type { Fault } from '../engine/schema'
 
-export type Tone = 'fault' | 'ovk' | 'yard' | 'bench' | 'status'
+export type Tone = 'fault' | 'ovk' | 'svk' | 'yard' | 'bench' | 'status'
 
 export interface Described {
   text: string
@@ -51,12 +52,42 @@ export function describe(e: LogEvent): Described {
       }
     case 'BRAKE':
       return { text: e.data.level ? `Kavach brake ${e.data.level}` : 'Kavach brake released', tone: 'fault' }
+    case 'SVK_REGISTER':
+      return { text: `${e.data.svk} registered loco at ${m(e.data.absLocM)}, ${e.data.direction}, TIN ${e.data.tin}`, tone: 'svk', clause: 'SRS 17.3' }
+    case 'SVK_MA': {
+      const d = e.data
+      const sig = d.signal ? `${d.signal} ${d.aspect}${d.nextAspect ? ` (next ${d.nextAspect})` : ''}` : 'no signal ahead'
+      const why = d.restricted.length
+        ? ` · ${d.restricted.map((r) => `${r.signal} held at R: ${REASON[r.reason]}`).join('; ')}`
+        : ''
+      return {
+        text: `MA ${m(d.maM)} to ${d.eoa === 'route-end' ? 'end of known route' : d.eoa} · ${sig}${why}`,
+        tone: d.restricted.length ? 'fault' : 'svk',
+        clause: d.restricted.some((r) => r.reason === 'HOLD') ? 'SRS 5.2 · 18.8' : d.restricted.length ? 'SRS 12.1' : 'SRS 5.4',
+      }
+    }
     case 'OVK_STATUS':
       return {
         text: `${e.data.speedKmph.toFixed(1)} km/h · loc ${e.data.absLocM === null ? 'undefined' : m(e.data.absLocM)} · ${e.data.direction} · TIN ${e.data.tin ?? '—'}`,
         tone: 'status',
         clause: 'SRS 21.5',
       }
+  }
+}
+
+const REASON = { ROUTE_MISMATCH: 'route not proved (points)', ROUTE_OCCUPIED: 'route occupied', HOLD: 'aspect-change hold' } as const
+
+/** One-line summary of a scheduled fault. */
+export function faultSummary(f: Fault): string {
+  switch (f.kind) {
+    case 'ODO_SCALE':
+      return `PG × ${f.factor}`
+    case 'RFID_DROP':
+      return `drop ${f.tags.join(', ')}`
+    case 'POINT_NOT_DETECTED':
+      return `${f.point} detection lost`
+    case 'SIGNAL_FLICKER':
+      return `${f.signal} flickers every ${f.periodSec} s`
   }
 }
 

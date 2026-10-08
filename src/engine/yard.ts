@@ -25,6 +25,9 @@ export interface YardIssue {
   ref?: string
 }
 
+/** Point position as seen by some observer; undefined = not detected. */
+export type PointLookup = (pointId: string) => PointPosition | undefined
+
 export class YardModel {
   readonly tracks = new Map<string, Track>()
   readonly points = new Map<string, Point>()
@@ -53,13 +56,20 @@ export class YardModel {
     return t
   }
 
-  /** The track (and direction on it) entered after leaving `track` in `dir`, or null at a dead end. */
-  next(track: Track, dir: Direction): { track: Track; dir: Direction } | null {
+  /** Ground-truth point positions. */
+  readonly truePoints: PointLookup = (id) => this.pointState.get(id)
+
+  /**
+   * The track (and direction on it) entered after leaving `track` in `dir`,
+   * or null at a dead end — or at a facing point whose position is unknown.
+   */
+  next(track: Track, dir: Direction, points: PointLookup = this.truePoints): { track: Track; dir: Direction } | null {
     const node = dir === 'nominal' ? track.b : track.a
     const point = this.pointAtNode.get(node)
     let nextId: string | undefined
     if (point) {
-      if (track.id === point.toe) nextId = this.pointState.get(point.id) === 'reverse' ? point.reverse : point.normal
+      const pos = points(point.id)
+      if (track.id === point.toe) nextId = pos === undefined ? undefined : pos === 'reverse' ? point.reverse : point.normal
       else if (track.id === point.normal || track.id === point.reverse) nextId = point.toe
     } else {
       const others = (this.tracksAtNode.get(node) ?? []).filter((t) => t.id !== track.id)
@@ -70,8 +80,8 @@ export class YardModel {
     return { track: nt, dir: nt.a === node ? 'nominal' : 'reverse' }
   }
 
-  /** Walks the graph from a track/direction using current point settings. */
-  buildRoute(startTrack: string, dir: Direction, startM = 0, maxM = 100_000): RouteSegment[] {
+  /** Walks the graph from a track/direction using the given (default: true) point settings. */
+  buildRoute(startTrack: string, dir: Direction, startM = 0, maxM = 100_000, points: PointLookup = this.truePoints): RouteSegment[] {
     const route: RouteSegment[] = []
     let cur: { track: Track; dir: Direction } | null = { track: this.track(startTrack), dir }
     let m = startM
@@ -82,9 +92,26 @@ export class YardModel {
       visited.add(key)
       route.push({ track: cur.track, dir: cur.dir, startM: m, endM: m + cur.track.lengthM })
       m += cur.track.lengthM
-      cur = this.next(cur.track, cur.dir)
+      cur = this.next(cur.track, cur.dir, points)
     }
     return route
+  }
+
+  /** Chainage (absolute location) of a track's `a` node, from any tag on it. */
+  chainageBase(trackId: string): number | undefined {
+    const tag = this.yard.tags.find((g) => g.track === trackId)
+    return tag ? tag.absLocM - tag.offsetM : undefined
+  }
+
+  /** Where an absolute location falls on the track carrying `tin`, or undefined if unknown. */
+  locateAbs(tin: number, absLocM: number): { track: Track; offsetM: number } | undefined {
+    for (const t of this.yard.tracks) {
+      if (t.tin !== tin) continue
+      const base = this.chainageBase(t.id)
+      if (base === undefined) continue
+      return { track: t, offsetM: Math.min(Math.max(absLocM - base, 0), t.lengthM) }
+    }
+    return undefined
   }
 
   /** Route distance of a point on a track given as offset from its `a` node. */
@@ -151,6 +178,22 @@ export function checkYard(yard: Yard): YardIssue[] {
     const t = yard.tracks.find((x) => x.id === obj.track)
     if (!t) err(`${obj.id} is on unknown track ${obj.track}`, obj.id)
     else if (obj.offsetM > t.lengthM) err(`${obj.id} offset ${obj.offsetM} m is beyond track ${t.id} (${t.lengthM} m)`, obj.id)
+  }
+
+  const signalIds = new Set(yard.signals.map((s) => s.id))
+  const pointIds = new Set(yard.points.map((p) => p.id))
+  for (const r of yard.controlTable) {
+    if (!signalIds.has(r.signal)) err(`Control-table route ${r.id} references unknown signal ${r.signal}`, r.id)
+    for (const p of Object.keys(r.points)) if (!pointIds.has(p)) err(`Control-table route ${r.id} references unknown point ${p}`, r.id)
+    for (const t of r.tracks) if (!trackIds.has(t)) err(`Control-table route ${r.id} references unknown track ${t}`, r.id)
+  }
+  const owner = new Map<string, string>()
+  for (const st of yard.stations) {
+    for (const s of st.signals) {
+      if (!signalIds.has(s)) err(`${st.id} controls unknown signal ${s}`, st.id)
+      if (owner.has(s)) err(`Signal ${s} is controlled by both ${owner.get(s)} and ${st.id}`, s)
+      owner.set(s, st.id)
+    }
   }
 
   // SRS 3.4.2.2: every tag duplicated

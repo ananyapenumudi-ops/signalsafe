@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Scenario } from './engine/schema'
 import { checkYard } from './engine/yard'
 import { twoStation } from './scenarios/twoStation'
+import { faultSummary } from './ui/describe'
 import { EventFeed } from './ui/EventFeed'
 import { TrainPanel } from './ui/TrainPanel'
 import { YardView } from './ui/YardView'
@@ -74,7 +75,7 @@ export default function App() {
             <h2>{scenario.yard.name}</h2>
             <span className="eyebrow">Yard · live</span>
             <span className="legend">
-              <i className="lg-tag" /> RFID tag pair <i className="lg-belief" /> OVK belief <i className="lg-train" /> train
+              <i className="lg-tag" /> RFID tag pair <i className="lg-ma" /> movement authority <i className="lg-belief" /> OVK belief <i className="lg-train" /> train
             </span>
           </header>
           <YardView yard={scenario.yard} snapshot={snap} />
@@ -96,8 +97,10 @@ export default function App() {
                   <li key={f.id} className={on ? 'on' : ''}>
                     <span className="dot" />
                     <b>{f.id}</b>
-                    <span className="mono">{f.kind === 'ODO_SCALE' ? `PG × ${f.factor}` : `drop ${f.tags.join(', ')}`}</span>
-                    <span className="muted">from {f.startSec} s</span>
+                    <span className="mono">{faultSummary(f)}</span>
+                    <span className="muted">
+                      {f.startSec}–{f.endSec ?? '∞'} s
+                    </span>
                   </li>
                 )
               })}

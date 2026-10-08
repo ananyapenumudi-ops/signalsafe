@@ -61,6 +61,25 @@ export const Tag = z.object({
   kind: z.enum(['normal', 'lc', 'adjacent', 'adjustment']).default('normal'),
 })
 
+/**
+ * KAVACH control table row (SRS 12.2, Annexure I): a signal may show an OFF
+ * aspect for this route only if these points are detected in these positions
+ * and these tracks are clear.
+ */
+export const Route = z.object({
+  id,
+  signal: id,
+  points: z.record(z.string(), PointPosition).default({}),
+  tracks: z.array(id).default([]),
+})
+
+/** A Stationary Kavach unit and the signals it controls. */
+export const Station = z.object({
+  id,
+  name: z.string(),
+  signals: z.array(id).min(1),
+})
+
 export const Yard = z.object({
   name: z.string(),
   nodes: z.array(Node).min(2),
@@ -68,6 +87,8 @@ export const Yard = z.object({
   points: z.array(Point).default([]),
   signals: z.array(Signal).default([]),
   tags: z.array(Tag).default([]),
+  controlTable: z.array(Route).default([]),
+  stations: z.array(Station).default([]),
 })
 
 export const Train = z.object({
@@ -90,6 +111,10 @@ export const Fault = z.discriminatedUnion('kind', [
   z.object({ ...window, kind: z.literal('RFID_DROP'), tags: z.array(id).min(1) }),
   /** Pulse generators over/under-read: OVK odometry = true distance × factor. */
   z.object({ ...window, kind: z.literal('ODO_SCALE'), train: id, factor: z.number().positive() }),
+  /** Point detection (WKR) lost: the SVK sees the point as undetermined. */
+  z.object({ ...window, kind: z.literal('POINT_NOT_DETECTED'), point: id }),
+  /** Signal ECR input chatters between ON and its set aspect. */
+  z.object({ ...window, kind: z.literal('SIGNAL_FLICKER'), signal: id, periodSec: z.number().positive().default(0.5) }),
 ])
 
 /** Expected observable for the Evaluation Tool (matcher arrives in week 7). */
@@ -130,6 +155,8 @@ export type Track = z.infer<typeof Track>
 export type Point = z.infer<typeof Point>
 export type Signal = z.infer<typeof Signal>
 export type Tag = z.infer<typeof Tag>
+export type Route = z.infer<typeof Route>
+export type Station = z.infer<typeof Station>
 export type Yard = z.infer<typeof Yard>
 export type Train = z.infer<typeof Train>
 export type TimelineEntry = z.infer<typeof TimelineEntry>

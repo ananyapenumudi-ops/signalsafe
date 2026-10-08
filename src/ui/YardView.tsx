@@ -91,6 +91,21 @@ export function YardView({ yard, snapshot }: { yard: Yard; snapshot: Snapshot | 
               })()
         return (
           <g key={t.locoId}>
+            {t.maSpans.map((s) => {
+              const tr = tracks.get(s.track)!
+              return <path key={`ma-${s.track}`} d={pathD(slice(layout.polylines.get(s.track)!, s.fromM / tr.lengthM, s.toM / tr.lengthM))} className="ma" transform="translate(0 -9)" />
+            })}
+            {t.ma && t.maSpans.length > 0 && (() => {
+              const lastSpan = t.maSpans[t.maSpans.length - 1]!
+              const tr = tracks.get(lastSpan.track)!
+              const [x, y] = at(layout, tr, lastSpan.toM)
+              return (
+                <g className="eoa">
+                  <line x1={x} y1={y - 16} x2={x} y2={y - 3} />
+                  <text x={x} y={y - 19} textAnchor="middle">EOA</text>
+                </g>
+              )
+            })()}
             {t.body.map((b) => (
               <path key={b.track} d={pathD(slice(layout.polylines.get(b.track)!, b.fromM / tracks.get(b.track)!.lengthM, b.toM / tracks.get(b.track)!.lengthM))} className="train-body" />
             ))}

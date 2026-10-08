@@ -62,6 +62,35 @@ export function TrainPanel({ t }: { t: TrainSnapshot }) {
           </div>
         </dl>
       </div>
+      <div className={`ma-box${t.ma?.restricted.length ? ' restricted' : ''}`}>
+        {t.ma ? (
+          <>
+            <div>
+              <span className="k">MA from {t.ma.svk}</span>
+              <b>{fmt(t.ma.maM)}</b> to {t.ma.eoa === 'route-end' ? 'end of known route' : t.ma.eoa}
+            </div>
+            <div>
+              <span className="k">Approaching</span>
+              {t.ma.signal ? (
+                <>
+                  <b>{t.ma.signal}</b> {t.ma.aspect} in {fmt(t.ma.signalDistM ?? 0)}
+                  {t.ma.nextAspect && <> · next {t.ma.nextAspect}</>}
+                </>
+              ) : (
+                '—'
+              )}
+            </div>
+            {t.ma.restricted.map((r) => (
+              <div key={r.signal} className="why">
+                {r.signal} shown at R: {r.reason === 'HOLD' ? 'aspect-change hold' : r.reason === 'ROUTE_MISMATCH' ? 'route not proved' : 'route occupied'}{' '}
+                <span className="ref">{r.reason === 'HOLD' ? 'SRS 5.2' : 'SRS 12.1'}</span>
+              </div>
+            ))}
+          </>
+        ) : (
+          <span className="muted">No MA yet: the SVK serves a loco only after it reports a valid location and direction <span className="ref">SRS 17.3</span></span>
+        )}
+      </div>
       <p className="note">
         The sage band on the yard is where the OVK <i>thinks</i> it is: last tag + odometry, ± 5 m + 5% of distance since that tag{' '}
         <span className="ref">SRS 3.4.2.4</span>.

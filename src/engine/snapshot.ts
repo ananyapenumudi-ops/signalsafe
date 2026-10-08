@@ -1,5 +1,6 @@
 /** Plain-data view of the simulation sent from the worker to the UI each frame. */
 import type { Aspect, BrakeLevel, Direction, PointPosition } from './schema'
+import type { MaPacket } from './svk/svk'
 
 export interface TrainSnapshot {
   locoId: string
@@ -12,6 +13,9 @@ export interface TrainSnapshot {
   trueAbsLocM: number
   /** Track spans the train body occupies, as offsets from each track's `a` node. */
   body: { track: string; fromM: number; toM: number }[]
+  /** Latest MA from the serving SVK, and the track spans it covers ahead of the train. */
+  ma: MaPacket | null
+  maSpans: { track: string; fromM: number; toM: number }[]
   kavachBrake: BrakeLevel | null
   atEndOfLine: boolean
   ovk: {

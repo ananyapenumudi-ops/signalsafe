@@ -6,8 +6,10 @@
  *   2. Speed simulator: driver → kinematics → odometry (ODO-A)
  *   3. RFID simulator: swept tag crossings → RFID-A → OVK
  *   4. Signals passed (ground truth for evaluation)
- *   5. Periodic loggers on frame boundaries (SRS 21.2)
- * Reference SVK, RMS and supervision slot in from weeks 3–4.
+ *   5. Reference SVKs read interlocking inputs (every tick, to see flicker)
+ *   6. On frame boundaries: SVKs build MAs from OVK location reports
+ *      (direct for now; through the RMS from week 4), periodic loggers
+ * OVK supervision and the RMS slot in from week 4.
  */
 import { driverAccel, stepKinematics } from './dynamics'
 import { EventLog, type LogEvent } from './log'
@@ -16,6 +18,7 @@ import { DT, TICKS_PER_FRAME, kmph } from './params'
 import { crossed } from './rfid'
 import { Rng } from './rng'
 import { Scenario, type Aspect, type BrakeLevel, type Fault, type ScenarioInput, type Signal, type Tag, type Train } from './schema'
+import { ReferenceSvk, maChanged, type FieldInputs, type MaPacket } from './svk/svk'
 import { YardModel, type OnRoute, type RouteSegment } from './yard'
 import type { Snapshot } from './snapshot'
 
@@ -31,6 +34,7 @@ export interface TrainState {
   tagsAhead: OnRoute<Tag>[]
   signalsAhead: OnRoute<Signal>[]
   ovk: OvkPosition
+  ma: MaPacket | null
   atEndOfLine: boolean
 }
 
@@ -41,6 +45,10 @@ export class Simulation {
   readonly rng: Rng
   readonly trains: TrainState[]
   readonly aspects = new Map<string, Aspect>()
+  readonly svks: ReferenceSvk[]
+  /** Seq of the latest event that changed each signal's / point's input, for causedBy. */
+  private readonly aspectCause = new Map<string, number>()
+  private readonly pointCause = new Map<string, number>()
   tick = 0
   ended = false
 
@@ -58,6 +66,20 @@ export class Simulation {
     this.scenario.timeline.sort((a, b) => a.atSec - b.atSec)
     this.log.append({ source: 'TBC', type: 'SIM_START', data: { scenario: this.scenario.id, seed: seed ?? this.scenario.seed } })
     this.trains = this.scenario.trains.map((spec) => this.initTrain(spec))
+    this.svks = this.scenario.yard.stations.map((st) => new ReferenceSvk(st.id, st.signals, this.yard))
+  }
+
+  /** Interlocking inputs as the SVKs see them: ground truth with yard faults applied. */
+  readonly inputs: FieldInputs = {
+    aspect: (id) => {
+      const set = this.aspects.get(id) ?? 'R'
+      const flicker = this.faultActive('SIGNAL_FLICKER').find((f) => f.signal === id)
+      if (!flicker) return set
+      return Math.floor((this.tSim - flicker.startSec) / flicker.periodSec) % 2 === 1 ? 'R' : set
+    },
+    point: (id) => (this.faultActive('POINT_NOT_DETECTED').some((f) => f.point === id) ? undefined : this.yard.pointState.get(id)),
+    occupied: (trackId) =>
+      this.trains.some((t) => bodySpans(t.route, Math.max(t.routeM - t.spec.lengthM, t.route[0]!.startM), t.routeM).some((b) => b.track === trackId)),
   }
 
   get tSim(): number {
@@ -83,6 +105,7 @@ export class Simulation {
       tagsAhead: [],
       signalsAhead: [],
       ovk: new OvkPosition(),
+      ma: null,
       atEndOfLine: false,
     }
     this.refreshObjects(t)
@@ -127,10 +150,15 @@ export class Simulation {
     const t = this.tSim
     for (const f of this.scenario.faults) {
       if (!this.activeFaults.has(f.id) && !this.faultEnded.has(f.id) && t >= f.startSec) {
-        this.activeFaults.set(f.id, this.log.append({ source: 'FAULT', type: 'FAULT_START', data: { fault: f.id, kind: f.kind } }))
+        const seq = this.log.append({ source: 'FAULT', type: 'FAULT_START', data: { fault: f.id, kind: f.kind } })
+        this.activeFaults.set(f.id, seq)
+        if (f.kind === 'SIGNAL_FLICKER') this.aspectCause.set(f.signal, seq)
+        if (f.kind === 'POINT_NOT_DETECTED') this.pointCause.set(f.point, seq)
       }
       if (this.activeFaults.has(f.id) && f.endSec !== undefined && t >= f.endSec) {
-        this.log.append({ source: 'FAULT', type: 'FAULT_END', data: { fault: f.id, kind: f.kind }, causedBy: [this.activeFaults.get(f.id)!] })
+        const seq = this.log.append({ source: 'FAULT', type: 'FAULT_END', data: { fault: f.id, kind: f.kind }, causedBy: [this.activeFaults.get(f.id)!] })
+        if (f.kind === 'SIGNAL_FLICKER') this.aspectCause.set(f.signal, seq)
+        if (f.kind === 'POINT_NOT_DETECTED') this.pointCause.set(f.point, seq)
         this.activeFaults.delete(f.id)
         this.faultEnded.add(f.id)
       }
@@ -147,12 +175,13 @@ export class Simulation {
           if (!this.yard.points.has(e.point)) throw new Error(`Unknown point ${e.point}`)
           this.yard.pointState.set(e.point, e.position)
           const seq = this.log.append({ source: 'YARD', type: 'POINT_SET', data: { point: e.point, position: e.position } })
+          this.pointCause.set(e.point, seq)
           for (const tr of this.trains) this.reroute(tr, seq)
           break
         }
         case 'SET_ASPECT':
           this.aspects.set(e.signal, e.aspect)
-          this.log.append({ source: 'YARD', type: 'ASPECT_SET', data: { signal: e.signal, aspect: e.aspect } })
+          this.aspectCause.set(e.signal, this.log.append({ source: 'YARD', type: 'ASPECT_SET', data: { signal: e.signal, aspect: e.aspect } }))
           break
       }
     }
@@ -212,7 +241,46 @@ export class Simulation {
     }
   }
 
-  // ── 5. periodic loggers ───────────────────────────────────
+  // ── 6. SVK movement authority, once per frame ─────────────
+  private runSvks() {
+    for (const t of this.trains) {
+      const o = t.ovk
+      if (o.direction === 'undefined' || o.absLocM === null || o.tin === null) continue // SRS 17.3
+      const id = t.spec.locoId
+      const report = { locoId: id, absLocM: o.absLocM, direction: o.direction, tin: o.tin }
+      // Serving SVK = owner of the approaching signal (handover per Annex P comes later)
+      const approaching = this.svks[0]?.signalsAhead(report, this.inputs)?.ahead[0]?.item.id
+      const svk = (approaching && this.svks.find((s) => s.ownsSignal(approaching))) || this.svks.find((s) => s.id === t.ma?.svk) || this.svks[0]
+      if (!svk) continue
+      if (!svk.registered.has(id)) {
+        svk.registered.add(id)
+        this.log.append({ source: `SVK:${svk.id}`, type: 'SVK_REGISTER', train: id, data: { svk: svk.id, absLocM: report.absLocM, direction: report.direction, tin: report.tin } })
+      }
+      const packet = svk.computeMa(report, this.inputs)
+      if (packet && maChanged(t.ma, packet)) {
+        const causes = new Set<number>()
+        const add = (c: number | undefined) => c !== undefined && causes.add(c)
+        for (const r of packet.restricted) {
+          if (r.reason === 'ROUTE_MISMATCH') this.routePointCauses(r.signal).forEach(add)
+          if (r.reason === 'HOLD') add(this.aspectCause.get(r.signal))
+        }
+        if (packet.signal && packet.aspect !== t.ma?.aspect) add(this.aspectCause.get(packet.signal))
+        if (t.ma) for (const r of t.ma.restricted) if (!packet.restricted.some((x) => x.signal === r.signal)) {
+          // a restriction lifted: cite what changed
+          if (r.reason === 'ROUTE_MISMATCH') this.routePointCauses(r.signal).forEach(add)
+          else add(this.aspectCause.get(r.signal))
+        }
+        this.log.append({ source: `SVK:${svk.id}`, type: 'SVK_MA', train: id, data: packet, causedBy: [...causes].sort((a, b) => a - b) })
+      }
+      t.ma = packet
+    }
+  }
+
+  private routePointCauses(signalId: string): (number | undefined)[] {
+    return this.scenario.yard.controlTable.filter((r) => r.signal === signalId).flatMap((r) => Object.keys(r.points).map((p) => this.pointCause.get(p)))
+  }
+
+  // ── periodic loggers ──────────────────────────────────────
   private logPeriodic() {
     for (const t of this.trains) {
       this.log.append({
@@ -238,7 +306,11 @@ export class Simulation {
     this.runController()
     for (const t of this.trains) this.moveTrain(t)
     this.tick++
-    if (this.tick % TICKS_PER_FRAME === 0) this.logPeriodic()
+    for (const svk of this.svks) svk.observe(this.tSim, this.inputs)
+    if (this.tick % TICKS_PER_FRAME === 0) {
+      this.runSvks()
+      this.logPeriodic()
+    }
     if (this.tSim >= this.scenario.durationSec) {
       this.ended = true
       this.log.append({ source: 'TBC', type: 'SIM_END', data: { reason: 'duration' } })
@@ -276,6 +348,8 @@ export class Simulation {
           offsetM: front.offsetM,
           trueAbsLocM: this.trueAbsLocM(t),
           body: bodySpans(t.route, rearM, t.routeM),
+          ma: t.ma,
+          maSpans: t.ma ? bodySpans(t.route, t.routeM, t.routeM + t.ma.maM) : [],
           kavachBrake: t.kavachBrake,
           atEndOfLine: t.atEndOfLine,
           ovk: {

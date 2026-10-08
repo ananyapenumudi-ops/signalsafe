@@ -4,8 +4,9 @@
  * the Evaluation Tool can rebuild the causal chain behind any outcome.
  */
 import type { Aspect, BrakeLevel, Direction, FaultKind, PointPosition } from './schema'
+import type { MaPacket } from './svk/svk'
 
-export type Source = 'TBC' | 'YARD' | 'SS' | 'RFID-S' | 'FAULT' | `OVK:${string}`
+export type Source = 'TBC' | 'YARD' | 'SS' | 'RFID-S' | 'FAULT' | `OVK:${string}` | `SVK:${string}`
 
 /** Payload for each event type. Extend here as modules are added. */
 export interface EventDataMap {
@@ -27,6 +28,10 @@ export interface EventDataMap {
   OVK_DIRECTION: { direction: Direction; fromTags: [string, string] }
   OVK_TIN: { from: number | null; to: number }
   OVK_LOCATION_CORRECTED: { tag: string; errorM: number; boundM: number; withinBound: boolean }
+  /** SVK accepted a loco's first valid location report (SRS 17.3). */
+  SVK_REGISTER: { svk: string; absLocM: number; direction: Direction; tin: number }
+  /** New or changed Movement Authority (SRS 5.4, 21.6(b)). */
+  SVK_MA: MaPacket
   /** Periodic OVK data-logger record (SRS 21.5(a)). */
   OVK_STATUS: {
     speedKmph: number

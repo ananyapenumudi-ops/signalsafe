@@ -361,6 +361,55 @@ button {
   height: 10px;
   background: var(--rust);
 }
+.lg-ma {
+  width: 18px;
+  height: 3px;
+  background: var(--rust);
+}
+.ma {
+  fill: none;
+  stroke: var(--rust);
+  stroke-width: 3;
+  stroke-dasharray: 6 4;
+}
+.eoa line {
+  stroke: var(--rust);
+  stroke-width: 2.5;
+}
+.eoa text {
+  font: 700 9px var(--mono);
+  fill: var(--rust-deep);
+}
+.ma-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  font-size: 13px;
+  display: grid;
+  gap: 4px;
+}
+.ma-box.restricted {
+  border-color: var(--rust);
+  background: var(--rust-soft);
+}
+.ma-box .k {
+  display: inline-block;
+  min-width: 110px;
+  font: 700 9.5px var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.ma-box .why {
+  color: var(--rust-deep);
+  font-weight: 700;
+}
+.ev-src.tone-svk {
+  background: var(--olive-3);
+  color: var(--parch);
+}
 .lg-belief {
   width: 18px;
   height: 10px;
