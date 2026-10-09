@@ -15,6 +15,7 @@ import { driverCommand, gradientAccel, stepTrain } from './dynamics'
 import { EventLog, type LogEvent } from './log'
 import { OvkPosition } from './ovk/position'
 import { OvkSupervisor, type CauseKey } from './ovk/supervision'
+import { LcWhistle, type LcEvent } from './ovk/lc'
 import { DT, TICKS_PER_FRAME, kmph } from './params'
 import { crossed } from './rfid'
 import { Rng } from './rng'
@@ -37,6 +38,7 @@ export interface TrainState {
   signalsAhead: OnRoute<Signal>[]
   ovk: OvkPosition
   sup: OvkSupervisor
+  lc: LcWhistle
   /** Seqs of the events the supervisor's events cite. */
   causes: Partial<Record<CauseKey, number>>
   /** When the DMI auto-player will press Ack, if a prompt is pending. */
@@ -121,6 +123,7 @@ export class Simulation {
       signalsAhead: [],
       ovk: new OvkPosition(),
       sup: new OvkSupervisor(this.scenario.blockType),
+      lc: new LcWhistle(),
       causes: {},
       ackAt: null,
       ma: null,
@@ -265,6 +268,11 @@ export class Simulation {
       for (const ev of t.ovk.onTag({ tag: tag.id, pair: tag.pair, absLocM: tag.absLocM, tin: tag.tin })) {
         this.log.append({ source: `OVK:${id}`, train: id, locM: tag.absLocM, causedBy: [readSeq], ...ev })
       }
+      const gate = tag.lcGate ? this.scenario.yard.lcGates.find((g) => g.id === tag.lcGate) : undefined
+      if (gate) {
+        t.lc.onGate({ id: gate.id, manning: gate.manning, absLocM: gate.absLocM, source: 'TAG' })
+        t.causes.lc = readSeq
+      }
     }
 
     for (const { item: sig } of t.routeM > from ? crossed(t.signalsAhead, from, t.routeM) : []) {
@@ -316,6 +324,16 @@ export class Simulation {
     const scale = this.faultActive('ODO_SCALE').find((f) => f.train === id)?.factor ?? 1
     this.logSup(t, t.sup.step(this.tSim, t.speed * scale, pos, t.spec.maxKmph, t.traction))
     t.kavachBrake = t.sup.brake
+    this.logLc(t, t.lc.step(pos, Math.abs(t.speed * scale), t.sup.eoaAbsM, t.sup.mode !== 'TRIP'))
+  }
+
+  private logLc(t: TrainState, events: LcEvent[], source?: 'DIS') {
+    const id = t.spec.locoId
+    for (const ev of events) {
+      const cause = ev.type === 'LC_APPROACH' ? t.causes.lc : t.causes.lcApproach
+      const seq = this.log.append({ source: source ?? `OVK:${id}`, train: id, locM: round3(this.trueAbsLocM(t)), causedBy: cause === undefined ? [] : [cause], ...ev } as never)
+      if (ev.type === 'LC_APPROACH') t.causes.lcApproach = seq
+    }
   }
 
   private logSup(t: TrainState, events: ReturnType<OvkSupervisor['step']>, source?: 'DIS') {
@@ -337,11 +355,12 @@ export class Simulation {
     }
   }
 
-  /** Manual Common/Ack press from the DMI simulator. */
+  /** Manual Common/Ack press from the DMI simulator: answers a prompt, else cancels the auto-whistle (SRS 15.9). */
   ack(locoId: string) {
     const t = this.train(locoId)
     t.ackAt = null
-    this.logSup(t, t.sup.ack(this.tSim), 'DIS')
+    if (t.sup.ackPending) this.logSup(t, t.sup.ack(this.tSim), 'DIS')
+    else this.logLc(t, t.lc.cancel(), 'DIS')
   }
 
   /** RMS: is this packet delivered? Logs the packet either way. */
@@ -450,7 +469,12 @@ export class Simulation {
       const down = this.radio('down', 'MA', t, maSeq === undefined ? [] : [maSeq])
       if (!down.delivered) continue
       t.causes.ma = down.seq
-      this.logSup(t, t.sup.onMa(packet, report.absLocM, report.direction === 'nominal' ? 1 : -1, this.tSim))
+      const dir = report.direction === 'nominal' ? 1 : -1
+      this.logSup(t, t.sup.onMa(packet, report.absLocM, dir, this.tSim))
+      for (const g of packet.lcAhead ?? []) {
+        if (t.causes.lc === undefined) t.causes.lc = down.seq
+        t.lc.onGate({ id: g.id, manning: g.manning, absLocM: report.absLocM + dir * g.distM, source: 'TRACK_PROFILE' })
+      }
     }
   }
 
@@ -532,6 +556,8 @@ export class Simulation {
           maSpans: t.ma ? bodySpans(t.route, t.routeM, t.routeM + t.ma.maM) : [],
           kavachBrake: t.kavachBrake,
           dmi: t.sup.dmi(this.tSim),
+          lc: t.lc.nextGate(t.ovk.absLocM === null || t.ovk.direction === 'undefined' ? null : { absLocM: t.ovk.absLocM, dir: t.ovk.direction === 'nominal' ? 1 : -1 }),
+          horn: t.lc.horn,
           atEndOfLine: t.atEndOfLine,
           ovk: {
             direction: t.ovk.direction,

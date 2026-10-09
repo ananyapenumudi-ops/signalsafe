@@ -20,6 +20,9 @@ export interface TrainSnapshot {
   kavachBrake: BrakeLevel | null
   /** What the driver display shows (FRS 7.6.8). */
   dmi: DmiState
+  /** Next LC gate announced on the DMI, and whether the horn is blowing (SRS 15). */
+  lc: { id: string; manning: string; distM: number } | null
+  horn: boolean
   atEndOfLine: boolean
   ovk: {
     direction: Direction | 'undefined'

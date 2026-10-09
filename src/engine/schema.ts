@@ -61,6 +61,17 @@ export const Tag = z.object({
   /** Tags are duplicated (SRS 3.4.2.2); both tags of a pair share this id. */
   pair: id,
   kind: z.enum(['normal', 'lc', 'adjacent', 'adjustment']).default('normal'),
+  /** LC gate tags name the gate they announce (stand-in for the Annexure D format). */
+  lcGate: id.optional(),
+})
+
+/** Level-crossing gate (SRS 15). */
+export const LcGate = z.object({
+  id,
+  track: id,
+  offsetM: z.number().nonnegative(),
+  absLocM: z.number(),
+  manning: z.enum(['Manned', 'Unmanned']).default('Manned'),
 })
 
 /**
@@ -91,6 +102,7 @@ export const Yard = z.object({
   tags: z.array(Tag).default([]),
   controlTable: z.array(Route).default([]),
   stations: z.array(Station).default([]),
+  lcGates: z.array(LcGate).default([]),
 })
 
 /** How the DMI auto-player (FRS 7.6.8.5) drives: obedient pilots respect the SR ceiling and acknowledge prompts. */
@@ -140,9 +152,24 @@ export const Fault = z.discriminatedUnion('kind', [
   z.object({ ...window, kind: z.literal('SIGNAL_FLICKER'), signal: id, periodSec: z.number().positive().default(0.5) }),
 ])
 
-/** Expected observable for the Evaluation Tool (matcher arrives in week 7). */
+/**
+ * Expected observable for the Evaluation Tool (FRS 7.6.15): an event type,
+ * filters on its fields, and a window in time and/or location.
+ *
+ *  at.after  'start' | '<earlier observable id>' | 'fault:<fault id>' — the
+ *            anchor; without `sec` the event must simply come after it
+ *  at.sec    [lo, hi] seconds after the anchor (absolute if no anchor)
+ *  at.locM   [lo, hi] absolute location (chainage) of the event
+ *  filters   'train' and 'source' match the event; any other key matches
+ *            event.data (dotted paths allowed). A value may be a literal or
+ *            { gte?, lte? } for numbers.
+ *  expect    'present' (default) or 'absent' (must NOT happen in the window)
+ */
 export const Observable = z.object({
   id,
+  label: z.string(),
+  clause: z.string().optional(),
+  expect: z.enum(['present', 'absent']).default('present'),
   event: z.string(),
   filters: z.record(z.string(), z.unknown()).default({}),
   at: z
@@ -182,6 +209,7 @@ export type Signal = z.infer<typeof Signal>
 export type Tag = z.infer<typeof Tag>
 export type Route = z.infer<typeof Route>
 export type Station = z.infer<typeof Station>
+export type LcGate = z.infer<typeof LcGate>
 export type Yard = z.infer<typeof Yard>
 export type Train = z.infer<typeof Train>
 export type Driver = z.infer<typeof Driver>

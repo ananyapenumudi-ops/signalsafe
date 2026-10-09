@@ -39,14 +39,22 @@ function Row({ e, onSelect, selected }: { e: LogEvent; onSelect?: (seq: number) 
   )
 }
 
-export function EventFeed({ events }: { events: LogEvent[] }) {
+export function EventFeed({
+  events,
+  selected,
+  onSelect,
+}: {
+  events: LogEvent[]
+  selected: number | null
+  onSelect: (seq: number | null) => void
+}) {
   const [showAll, setShowAll] = useState(false)
-  const [selected, setSelected] = useState<number | null>(null)
+  const setSelected = onSelect
   const visible = useMemo(() => (showAll ? events : notableEvents(events)).slice(-300).reverse(), [events, showAll])
   const chain = useMemo(() => (selected === null ? [] : chainOf(events, selected)), [events, selected])
 
   return (
-    <section className="panel feed">
+    <section className="panel feed" id="event-log">
       <header className="panel-head">
         <h2>Event log</h2>
         <span className="eyebrow">TSL · FRS 7.6.11</span>

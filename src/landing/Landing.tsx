@@ -101,10 +101,10 @@ const CHAPTERS: Chapter[] = [
     eyebrow: 'Evaluation',
     title: ['Judged, ', 'clause by clause'],
     side: 'left',
-    status: { kind: 'building', text: 'Causal chains live · evaluator week 7' },
+    status: { kind: 'live', text: 'Live in the bench · every scenario' },
     body: [
       'Every event remembers what caused it. In the bench, click “why?” on any event to walk back to the fault that started it.',
-      'Each scenario carries the outcomes it expects. The evaluator finds each one in its time and location window, then reports pass or fail with the clause it tested. The cards in the scene are an illustrative report.',
+      'Each scenario carries the outcomes it expects, including things that must never happen. When a run ends, the evaluator finds each one in its time and location window and reports pass or fail with the clause it tested. Every result links to its record and causal chain.',
     ],
     facts: [
       { k: 'Logger', v: 'every event, caused-by links', ref: 'FRS 7.6.11' },
@@ -133,7 +133,7 @@ const CHAPTERS: Chapter[] = [
     eyebrow: 'Engineering',
     title: ['Deterministic ', 'to the byte'],
     side: 'left',
-    status: { kind: 'live', text: '81 tests · CI on every push' },
+    status: { kind: 'live', text: '99 tests · CI on every push' },
     body: [
       'Time moves in 100 ms ticks and 2 s frames, and all randomness comes from one seeded stream. The same scenario with the same seed gives the same log, every run, on every machine.',
       'Every number the engine enforces lives in one file, next to the clause it comes from. Property tests run thousands of random yards and speeds through it.',

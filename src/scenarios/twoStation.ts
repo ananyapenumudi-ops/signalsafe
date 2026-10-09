@@ -75,6 +75,9 @@ export const twoStation: ScenarioInput = {
       ...pair('T07', 'BLOCK', 1850, 2950, 201),
       ...pair('T08', 'BLOCK', 2750, 3850, 201),
       ...pair('T08S', 'BLOCK', 2843, 3943, 201), // signal-foot tag at S11 (SRS 3.4.2.6(b))
+      // LC gate tags on both sides of LC 42-A (SRS 3.4.2.7)
+      ...pair('TLC1', 'BLOCK', 750, 1850, 201).map((t) => ({ ...t, kind: 'lc' as const, lcGate: 'LC42A' })),
+      ...pair('TLC2', 'BLOCK', 2050, 3150, 201).map((t) => ({ ...t, kind: 'lc' as const, lcGate: 'LC42A' })),
       ...pair('T09', 'B_MAIN', 300, 4400, 302),
       ...pair('T10', 'B_LOOP', 310, 4400, 303),
       ...pair('T11', 'B_EXIT', 200, 5000, 301),
@@ -94,6 +97,7 @@ export const twoStation: ScenarioInput = {
       { id: 'S26-loop', signal: 'S26', points: { P2: 'reverse' }, tracks: ['A_LOOP'] },
       { id: 'S28-dep', signal: 'S28', points: { P1: 'normal' } },
     ],
+    lcGates: [{ id: 'LC42A', track: 'BLOCK', offsetM: 1400, absLocM: 2500, manning: 'Manned' }],
     stations: [
       { id: 'SVK-A', name: 'Station A', signals: ['S1', 'S3', 'S4', 'S5', 'S26', 'S28'] },
       { id: 'SVK-B', name: 'Station B', signals: ['S11', 'S13', 'S14', 'S22', 'S24'] },
@@ -113,5 +117,14 @@ export const twoStation: ScenarioInput = {
     { id: 'drop-T07', kind: 'RFID_DROP', tags: ['T07a', 'T07b'], startSec: 0 },
     { id: 'p2-undetected', kind: 'POINT_NOT_DETECTED', point: 'P2', startSec: 60, endSec: 66 },
     { id: 's11-flicker', kind: 'SIGNAL_FLICKER', signal: 'S11', periodSec: 0.4, startSec: 150, endSec: 154 },
+  ],
+  expect: [
+    { id: 'dir', label: 'Direction derived from two tag pairs', clause: 'SRS 7.2 · 7.5', event: 'OVK_DIRECTION', filters: { direction: 'nominal' } },
+    { id: 'reg', label: 'Registered only after direction is known', clause: 'SRS 17.3', event: 'SVK_REGISTER', at: { after: 'dir' } },
+    { id: 'withheld', label: 'Tag pair T07 withheld by the fault', clause: 'FRS 7.6.6.2', event: 'TAG_CROSSED', filters: { pair: 'T07', delivered: false }, at: { after: 'fault:drop-T07' } },
+    { id: 'linking', label: 'Every correction inside 5 m + 5%', clause: 'SRS 3.4.2.4', expect: 'absent', event: 'OVK_LOCATION_CORRECTED', filters: { withinBound: false } },
+    { id: 'p2', label: 'MA cut back to S3 while P2 is undetected', clause: 'SRS 12.1', event: 'SVK_MA', filters: { eoa: 'S3', 'restricted.0.signal': 'S3', 'restricted.0.reason': 'ROUTE_MISMATCH' }, at: { after: 'fault:p2-undetected', sec: [0, 2] } },
+    { id: 'flicker', label: 'S11 held at R through the flicker', clause: 'SRS 18.8', event: 'SVK_MA', filters: { signal: 'S11', aspect: 'R' }, at: { after: 'fault:s11-flicker', sec: [0, 4] } },
+    { id: 'loop', label: 'Routed into Station B loop (TIN 303)', clause: 'SRS 16.6', event: 'OVK_TIN', filters: { to: 303 } },
   ],
 }

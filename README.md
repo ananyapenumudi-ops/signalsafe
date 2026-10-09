@@ -29,7 +29,9 @@ Weeks 1–4 of the [8-week plan](docs/SignalSafe-Documentation.pdf) are complete
 - [x] Collision prevention (SRS 14): stationary-side assessment over all location reports in the block section; head-on → loco-specific SoS to both, EB immediately, released at 0 km/h; rear-end → target 300 m behind the front train's min safe rear end for the rear loco only; scenarios **S03** and **S04**
 - [x] Roll-back protection (SRS 13): signed train dynamics (force model with gradient, traction and brakes that hold at a stand); brake + warning after 5 m of roll-back, held until the pilot takes power; scenario **S08**
 - [x] Bench ground-truth collision detector, so a collision Kavach fails to prevent (e.g. an unregistered train) is caught and logged
-- [ ] Next: LC gate auto-whistle (SRS 15), PG mismatch / odometry-jump faults (S09, S12), Evaluation Tool
+- [x] LC gate auto-whistle (SRS 15): LC gate + LC tags in the yard, gates in the SVK track profile, first source wins, DMI approach message, continuous horn from 600 m, suppressed when the MA ends short of the gate or at a stand, Common/Ack cancels; scenarios **S11 / S11b / S11c**
+- [x] **Test Evaluation Tool** (FRS 7.6.15): each scenario lists expected observables (event, filters, time/location window, anchored to faults or earlier steps; `absent` for things that must never happen); matched records are consumed; unexpected safety events are flagged; bench report panel with "why?" links and JSON export. Every library scenario passes its own expectations in CI, and mutation checks prove the evaluator catches a broken Kavach
+- [ ] Next: PG mismatch / odometry-jump faults (S09, S12), Scenario Editor UI
 - [ ] Weeks 5–8: Scenario Editor, DMI and SMOCIP simulators, Evaluation Tool, reports
 
 ## Run it

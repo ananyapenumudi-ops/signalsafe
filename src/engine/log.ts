@@ -42,6 +42,10 @@ export interface EventDataMap {
   /** DMI collision message on this loco (rear-end only on the rear loco, SRS 14.3). */
   COLLISION_ALERT: { kind: Threat['kind']; other: string; gapM: number }
   COLLISION_CLEAR: { kind: Threat['kind']; other: string }
+  /** LC gate approach shown on the DMI (SRS 15.2). */
+  LC_APPROACH: { gate: string; manning: string; distM: number; source: 'TAG' | 'TRACK_PROFILE' }
+  /** Auto-whistle on/off (SRS 15.3–15.9). */
+  HORN: { on: boolean; gate: string; distM: number; reason: 'WITHIN_600M' | 'PASSED' | 'CANCELLED' | 'MA_SHORT' | 'STANDSTILL' | 'MODE' }
   /** Roll-back beyond the limit detected (SRS 13.1, 21.3(h)). */
   ROLLBACK: { distanceM: number }
   /** Ground truth from the bench: two train bodies overlap. Kavach did not prevent it. */

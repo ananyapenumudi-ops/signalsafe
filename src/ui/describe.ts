@@ -83,6 +83,13 @@ export function describe(e: LogEvent): Described {
       return { text: `DMI: ${e.data.kind === 'HEAD_ON' ? 'head-on SoS' : 'rear-end warning'} for loco ${e.data.other}, ${Math.round(e.data.gapM)} m`, tone: 'fault', clause: e.data.kind === 'HEAD_ON' ? 'SRS 14.2' : 'SRS 14.3' }
     case 'COLLISION_CLEAR':
       return { text: `DMI: ${e.data.kind === 'HEAD_ON' ? 'head-on SoS' : 'rear-end warning'} withdrawn`, tone: 'ovk', clause: 'SRS 14.5' }
+    case 'LC_APPROACH':
+      return { text: `DMI: ${e.data.manning} LC Gate ${e.data.gate} approaching in ${m(e.data.distM)} (from ${e.data.source === 'TAG' ? 'LC tag' : 'track profile'})`, tone: 'ovk', clause: 'SRS 15.2' }
+    case 'HORN': {
+      const why = { WITHIN_600M: `${m(e.data.distM)} from the gate`, PASSED: 'gate reached', CANCELLED: 'cancelled with Ack', MA_SHORT: 'MA ends short of the gate', STANDSTILL: 'train at a stand', MODE: 'not in this mode' }[e.data.reason]
+      const clause = { WITHIN_600M: 'SRS 15.8', PASSED: 'SRS 15.8', CANCELLED: 'SRS 15.9', MA_SHORT: 'SRS 15.4', STANDSTILL: 'SRS 15.5', MODE: 'SRS 15.7' }[e.data.reason]
+      return { text: `Auto-whistle ${e.data.on ? 'ON' : 'off'} for ${e.data.gate}: ${why}`, tone: e.data.on ? 'yard' : 'status', clause }
+    }
     case 'ROLLBACK':
       return { text: `Roll-back of ${e.data.distanceM} m against the cab direction → brake + warning`, tone: 'fault', clause: 'SRS 13.1' }
     case 'COLLISION':

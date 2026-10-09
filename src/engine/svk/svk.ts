@@ -57,6 +57,8 @@ export interface MaPacket {
   eoa: string
   /** Signals shown more restrictively than the interlocking set them, and why. */
   restricted: { signal: string; reason: RestrictReason }[]
+  /** LC gates ahead on the route: part of the track profile (SRS 5.4(g), 15.2). */
+  lcAhead?: { id: string; manning: string; distM: number }[]
   /** Loco-specific SoS (head-on) or rear-end target for this loco (SRS 14). */
   threat?: Threat | null
 }
@@ -66,6 +68,8 @@ export const mostRestrictive = (a: Aspect, b: Aspect): Aspect => (RANK[a] <= RAN
 
 /** How many signals ahead the SVK looks when extending an MA. */
 const LOOKAHEAD_SIGNALS = 3
+/** How far ahead the track profile lists LC gates. */
+const LC_PROFILE_RANGE_M = 3000
 
 interface HoldState {
   lastRaw: Aspect
@@ -144,14 +148,15 @@ export class ReferenceSvk {
     const route = this.yard.buildRoute(at.track.id, report.direction, 0, 20_000, points)
     const pos = YardModel.routeMOf(route[0]!, at.offsetM)
     const ahead = this.yard.signalsOnRoute(route).filter((s) => s.routeM > pos + 0.5)
-    return { pos, ahead, routeEndM: route[route.length - 1]!.endM }
+    const lc = this.yard.lcGatesOnRoute(route).filter((g) => g.routeM > pos)
+    return { pos, ahead, routeEndM: route[route.length - 1]!.endM, lc }
   }
 
   /** Builds the MA packet for one loco (SRS 5.4). Null if the location can't be placed. */
   computeMa(report: LocationReport, inputs: FieldInputs): MaPacket | null {
     const view = this.signalsAhead(report, inputs)
     if (!view) return null
-    const { pos, ahead, routeEndM } = view
+    const { pos, ahead, routeEndM, lc } = view
     const restricted: MaPacket['restricted'] = []
     const eff = ahead.slice(0, LOOKAHEAD_SIGNALS).map((s) => {
       const e = this.effectiveAspect(s.item.id, inputs)
@@ -172,6 +177,7 @@ export class ReferenceSvk {
       maM: round(Math.max(eoaM - pos, 0)),
       eoa: stop ? stop.item.id : eff.length >= LOOKAHEAD_SIGNALS && last ? last.item.id : 'route-end',
       restricted,
+      lcAhead: lc.filter((g) => g.routeM - pos <= LC_PROFILE_RANGE_M).map((g) => ({ id: g.item.id, manning: g.item.manning, distM: round(g.routeM - pos) })),
     }
   }
 }

@@ -41,9 +41,10 @@ describe('Simulation', () => {
       const fixes = ofType(events, 'OVK_LOCATION_CORRECTED')
       expect(fixes.length).toBeGreaterThan(4)
       for (const f of fixes) expect(f.data.withinBound).toBe(true)
-      // the correction after the missing pair spans ~1800 m, so its error is the largest
+      // the first correction after the withheld pair spans the longest stretch, so its error is the largest
       const worst = fixes.reduce((m, f) => (Math.abs(f.data.errorM) > Math.abs(m.data.errorM) ? f : m))
-      expect(worst.data.tag).toBe('T08a')
+      const lastDropped = ofType(events, 'TAG_CROSSED').filter((e) => !e.data.delivered).at(-1)!
+      expect(worst.seq).toBe(fixes.find((f) => f.seq > lastDropped.seq)!.seq)
     })
 
     it('reroutes into the Station B loop when P3 is reversed', () => {

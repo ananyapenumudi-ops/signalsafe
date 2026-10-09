@@ -51,6 +51,23 @@ export function YardView({ yard, snapshot }: { yard: Yard; snapshot: Snapshot | 
         return <rect key={g.id} x={x - 1.4} y={y - 3.5} width={2.8} height={7} className="tag" />
       })}
 
+      {/* LC gates */}
+      {yard.lcGates.map((g) => {
+        const [x, y] = at(layout, tracks.get(g.track)!, g.offsetM)
+        return (
+          <g key={g.id} className="lc">
+            <title>{`${g.manning} LC gate ${g.id}`}</title>
+            <line x1={x - 7} y1={y - 16} x2={x - 7} y2={y + 16} />
+            <line x1={x + 7} y1={y - 16} x2={x + 7} y2={y + 16} />
+            <line x1={x - 12} y1={y - 12} x2={x + 12} y2={y - 12} className="boom" />
+            <line x1={x - 12} y1={y + 12} x2={x + 12} y2={y + 12} className="boom" />
+            <text x={x} y={y + 30} textAnchor="middle" className="lc-label">
+              {g.id}
+            </text>
+          </g>
+        )
+      })}
+
       {/* signals */}
       {yard.signals.map((s) => {
         const [x, y] = at(layout, tracks.get(s.track)!, s.offsetM)

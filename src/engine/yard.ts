@@ -4,7 +4,7 @@
  * of tracks it will traverse given the current point settings.
  */
 import { P } from './params'
-import type { Direction, Point, PointPosition, Signal, Tag, Track, Yard } from './schema'
+import type { Direction, LcGate, Point, PointPosition, Signal, Tag, Track, Yard } from './schema'
 
 export interface RouteSegment {
   track: Track
@@ -131,6 +131,11 @@ export class YardModel {
     return this.onRoute(route, this.yard.tags, () => true)
   }
 
+  /** LC gates on a route, sorted by route distance. */
+  lcGatesOnRoute(route: RouteSegment[]): OnRoute<LcGate>[] {
+    return this.onRoute(route, this.yard.lcGates, () => true)
+  }
+
   /** Signals that face the direction of travel on each segment. */
   signalsOnRoute(route: RouteSegment[]): OnRoute<Signal>[] {
     return this.onRoute(route, this.yard.signals, (s, seg) => s.facing === seg.dir)
@@ -194,6 +199,13 @@ export function checkYard(yard: Yard): YardIssue[] {
       if (owner.has(s)) err(`Signal ${s} is controlled by both ${owner.get(s)} and ${st.id}`, s)
       owner.set(s, st.id)
     }
+  }
+
+  for (const g of yard.lcGates) {
+    if (!trackIds.has(g.track)) err(`LC gate ${g.id} is on unknown track ${g.track}`, g.id)
+  }
+  for (const tag of yard.tags) {
+    if (tag.lcGate && !yard.lcGates.some((g) => g.id === tag.lcGate)) err(`Tag ${tag.id} announces unknown LC gate ${tag.lcGate}`, tag.id)
   }
 
   // SRS 3.4.2.2: every tag duplicated

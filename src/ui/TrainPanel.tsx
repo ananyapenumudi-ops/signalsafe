@@ -68,6 +68,26 @@ export function TrainPanel({ t, onAck }: { t: TrainSnapshot; onAck: () => void }
           <b>{fmt(Math.max(d.targetDistM, 0))}</b>
         </div>
       )}
+      {(t.lc || t.horn) && (
+        <div className={`lcbar${t.horn ? ' on' : ''}`}>
+          <span>
+            {t.lc ? (
+              <>
+                {t.lc.manning} LC Gate <b>{t.lc.id}</b> approaching in {fmt(t.lc.distM)}
+              </>
+            ) : (
+              'LC gate'
+            )}
+          </span>
+          {t.horn ? (
+            <button type="button" className="ack" onClick={onAck} title="Common/Ack cancels the auto-whistle (SRS 15.9)">
+              📯 HORN · Ack to cancel
+            </button>
+          ) : (
+            <span className="ref">SRS 15.2</span>
+          )}
+        </div>
+      )}
       {(d.threat || d.rollback) && (
         <div className="alertbar eb">
           {d.threat && (

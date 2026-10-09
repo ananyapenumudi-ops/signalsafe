@@ -31,7 +31,7 @@ export type BrakeReason = 'CURVE' | 'OVERSPEED_EB' | 'SR_CEILING' | 'NO_ACK' | '
  * Keys of earlier events the supervisor's events can cite. 'silence' is bench
  * knowledge (the first packet the RMS dropped), not something the OVK can see.
  */
-export type CauseKey = 'ma' | 'silence' | 'blank' | 'radioFailure' | 'ackRequest' | 'trip' | 'threat' | 'rollback'
+export type CauseKey = 'ma' | 'silence' | 'blank' | 'radioFailure' | 'ackRequest' | 'trip' | 'threat' | 'rollback' | 'lc' | 'lcApproach'
 
 export type SupervisorEvent = { cause: CauseKey[] } & (
   | { type: 'OVK_MODE'; data: { from: Mode; to: Mode; reason: string } }
@@ -148,6 +148,11 @@ export class OvkSupervisor {
       out.push({ type: 'OVK_MODE', data: { from: 'FS', to: 'SR', reason: 'radio failure acknowledged' }, cause: ['radioFailure'] })
     }
     return out
+  }
+
+  /** End of the held MA (absolute), for the LC whistle's "MA short of gate" check. */
+  get eoaAbsM(): number | null {
+    return this.ma?.eoaAbsM ?? null
   }
 
   get ackPending(): boolean {

@@ -4,6 +4,7 @@ import { checkYard } from './engine/yard'
 import { LIBRARY } from './scenarios/library'
 import { faultSummary } from './ui/describe'
 import { EventFeed } from './ui/EventFeed'
+import { EvaluationPanel } from './ui/EvaluationPanel'
 import { TrainPanel } from './ui/TrainPanel'
 import { YardView } from './ui/YardView'
 import { useSimulation } from './ui/useSimulation'
@@ -12,6 +13,11 @@ const SPEEDS = [1, 4, 10, 20]
 
 export default function App() {
   const [pick, setPick] = useState(0)
+  const [selected, setSelected] = useState<number | null>(null)
+  const showEvent = (seq: number) => {
+    setSelected(seq)
+    document.getElementById('event-log')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   const input = LIBRARY[pick]!.scenario
   const scenario = useMemo(() => Scenario.parse(input), [input])
   const issues = useMemo(() => checkYard(scenario.yard), [scenario])
@@ -34,7 +40,13 @@ export default function App() {
         <span className="crumb-sep">/</span>
         <label className="picker">
           <span className="sr-only">Scenario</span>
-          <select value={pick} onChange={(e) => setPick(Number(e.target.value))}>
+          <select
+            value={pick}
+            onChange={(e) => {
+              setSelected(null)
+              setPick(Number(e.target.value))
+            }}
+          >
             {LIBRARY.map((l, i) => (
               <option key={l.scenario.id} value={i}>
                 {l.scenario.title}
@@ -94,6 +106,7 @@ export default function App() {
         </section>
 
         <div className="side">
+          <EvaluationPanel scenario={scenario} events={sim.events} ended={!!snap?.ended} onShow={showEvent} />
           {snap?.trains.map((t) => <TrainPanel key={t.locoId} t={t} onAck={() => sim.ack(t.locoId)} />)}
 
           <section className="panel">
@@ -131,7 +144,7 @@ export default function App() {
           </section>
         </div>
 
-        <EventFeed events={sim.events} />
+        <EventFeed events={sim.events} selected={selected} onSelect={setSelected} />
       </main>
 
       <footer className="foot">
